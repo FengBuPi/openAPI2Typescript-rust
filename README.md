@@ -1,0 +1,2 @@
+# openAPI2Typescript-rust
+openapi格式接口文档转成typescript小工具
