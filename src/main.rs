@@ -2,6 +2,19 @@ use serde::{Deserialize, Serialize};
 use tera::{Context, Tera};
 
 #[derive(Serialize, Deserialize, Debug)]
+enum TypeTemplate {
+    #[serde(rename = "interface")]
+    Interface,
+    #[serde(rename = "type")]
+    Type,
+    #[serde(rename = "enum")]
+    Enum,
+    #[serde(rename = "union")]
+    Union,
+}
+
+/// 属性值
+#[derive(Serialize, Deserialize, Debug)]
 struct Property {
     name: Option<String>,
     #[serde(rename = "$ref")]
@@ -12,15 +25,21 @@ struct Property {
     desc: Option<String>,
 }
 
+// 类型定义
 #[derive(Serialize, Deserialize, Debug)]
 struct TypeDefinition {
+    // 类型名称
     #[serde(rename = "typeName")]
     type_name: String,
-    #[serde(rename = "type")]
-    type_type: Option<String>,
+    // 给枚举使用的类型，is_enum为false 且 props为空数组就生成字符串枚举
+    // props 不为空， 该属性不生效
+    #[serde(rename = "enumTypeValue")]
+    enum_type_value: Option<String>,
+    // 类型的属性值
     props: Vec<Property>,
-    #[serde(rename = "isEnum")]
-    is_enum: bool,
+    // 类型的模板
+    #[serde(rename = "typeTemplate")]
+    type_template: Option<TypeTemplate>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -29,6 +48,7 @@ struct TemplateData {
     declare_type: String,
     equal_symbol: Option<String>,
     nullable: bool,
+    // 一个个类型
     list: Vec<TypeDefinition>,
     is_enum: bool,
 }
@@ -36,7 +56,7 @@ struct TemplateData {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 初始化 Tera 模板引擎
-    let mut tera = Tera::new("templates/**/*.tera")?;
+    let  tera = Tera::new("templates/**/*.tera")?;
     
     // 创建示例数据
     let template_data = TemplateData {
@@ -47,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         list: vec![
             TypeDefinition {
                 type_name: "User".to_string(),
-                type_type: None,
+                enum_type_value: None,
                 is_enum: false,
                 props: vec![
                     Property {
@@ -75,13 +95,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             TypeDefinition {
                 type_name: "UserRole".to_string(),
-                type_type: Some("'admin' | 'user' | 'guest'".to_string()),
-                is_enum: true,
-                props: vec![],
+                is_enum: false,
+                enum_type_value: Some("'admin' | 'user' | 'guest'".to_string()),
+                props: vec![
+                    Property {
+                        name: Some("success".to_string()),
+                        ref_path: None,
+                        prop_type: "boolean".to_string(),
+                        required: true,
+                        desc: None,
+                    }],
             },
             TypeDefinition {
                 type_name: "ApiResponse".to_string(),
-                type_type: None,
+                enum_type_value: None,
                 is_enum: false,
                 props: vec![
                     Property {

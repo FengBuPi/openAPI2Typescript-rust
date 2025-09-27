@@ -26,9 +26,9 @@ declare namespace {{ namespace }} {
   }
   {%- else %}
     {%- if type.isEnum  %}
-  enum {{ type.typeName | safe }} {{ type.type }};
+  enum {{ type.typeName | safe }} {{ type.enumTypeValue }};
     {%- else %}
-  type {{ type.typeName | safe }} = {{ type.type }};
+  type {{ type.typeName | safe }} = {{ type.enumTypeValue }};
     {%- endif %}
   {%- endif %}
 {% endfor %}
