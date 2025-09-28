@@ -1,35 +1,63 @@
 declare namespace {{ namespace }} {
-{% for type in list -%}
-  {%- if type.props | length > 0 %}
-    {%- if type.isEnum %}
-  enum {{ type.typeName | safe }} 
-    {%- else %}
-  {{ declareType }} {{ type.typeName | safe }} {{ equalSymbol }} {
-    {%- endif %}
-    {%- for prop in type.props %}
-      {%- if prop.desc %}
-      /** {{ prop.desc }} */
-      {%- endif %}
-      {%- if prop.ref_path %}
-        {%- if not prop.name %}
-      // {{ prop.ref_path }}
-      {{ prop.type | safe }}
-        {%- endif %}
-      {%- else %}
-        {%- if nullable %}
-      '{{ prop.name }}': {{ prop.type | safe }}{% if not prop.required %} | null{% endif %};
-        {%- else %}
-      '{{ prop.name }}'{% if not prop.required %}?{% endif %}: {{ prop.type | safe }};
-        {%- endif %}
-      {%- endif %}
-    {%- endfor %}
+{%- for type in list %}
+{%- if type.type_template %}
+{%- if type.desc %}
+  /** {{ type.desc }} */
+{%- endif %}
+{%- if type.type_template == "interface" %}
+  interface {{ type.type_name | title }} {
+{%- for prop in type.props %}
+{%- if prop.desc %}
+    /** {{ prop.desc }} */
+{%- endif %}
+{%- if prop.required %}
+    '{{ prop.name }}': {{ prop.prop_type }};
+{%- else %}
+    '{{ prop.name }}'?: {{ prop.prop_type }};
+{%- endif %}
+{%- endfor %}
   }
-  {%- else %}
-    {%- if type.isEnum  %}
-  enum {{ type.typeName | safe }} {{ type.enumTypeValue }};
-    {%- else %}
-  type {{ type.typeName | safe }} = {{ type.enumTypeValue }};
-    {%- endif %}
-  {%- endif %}
-{% endfor %}
+{%- elif type.type_template == "type" %}
+  type {{ type.type_name | title }} = {
+{%- for prop in type.props %}
+{%- if prop.desc %}
+    /** {{ prop.desc }} */
+{%- endif %}
+    '{{ prop.name }}': {{ prop.prop_type }};
+{%- endfor %}
+  };
+{%- elif type.type_template == "enum" %}
+  enum {{ type.type_name | title }} {
+{%- for prop in type.props %}
+    {{ prop.name }} = "{{ prop.name }}",
+{%- endfor %}
+  }
+{%- elif type.type_template == "const_as_enum" %}
+  const {{ type.type_name | title }}: {
+{%- for prop in type.props %}
+    readonly {{ prop.name }}: "{{ prop.name }}",
+{%- endfor %}
+  };
+  type {{ type.type_name | title }} = keyof typeof {{ type.type_name | title }};
+{%- elif type.type_template == "union" %}
+  type {{ type.type_name | title }} = 
+{%- for prop in type.props %}
+    {{ prop.prop_type }}{%- if not loop.last %} | {%- endif %}
+{%- endfor %};
+{%- endif %}
+{%- else %}
+  <!-- 默认模板 -->
+{%- if type.desc %}
+  /** {{ type.desc }} */
+{%- endif %}
+  interface {{ type.type_name | title }} {
+{%- for prop in type.props %}
+{%- if prop.desc %}
+    /** {{ prop.desc }} */
+{%- endif %}
+    '{{ prop.name }}': {{ prop.prop_type }};
+{%- endfor %}
+  }
+{%- endif %}
+{%- endfor %}
 }

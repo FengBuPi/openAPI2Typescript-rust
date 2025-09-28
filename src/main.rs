@@ -9,6 +9,9 @@ enum TypeTemplate {
     Type,
     #[serde(rename = "enum")]
     Enum,
+    /// 常量对象键类型提取模式
+    #[serde(rename = "const_as_enum")]
+    ConstAsEnum,
     #[serde(rename = "union")]
     Union,
 }
@@ -17,9 +20,9 @@ enum TypeTemplate {
 #[derive(Serialize, Deserialize, Debug)]
 struct Property {
     name: Option<String>,
-    #[serde(rename = "$ref")]
+    #[serde(rename = "ref_path")]
     ref_path: Option<String>,
-    #[serde(rename = "type")]
+    #[serde(rename = "prop_type")]
     prop_type: String,
     required: bool,
     desc: Option<String>,
@@ -29,17 +32,19 @@ struct Property {
 #[derive(Serialize, Deserialize, Debug)]
 struct TypeDefinition {
     // 类型名称
-    #[serde(rename = "typeName")]
+    #[serde(rename = "type_name")]
     type_name: String,
     // 给枚举使用的类型，is_enum为false 且 props为空数组就生成字符串枚举
     // props 不为空， 该属性不生效
-    #[serde(rename = "enumTypeValue")]
+    #[serde(rename = "enum_type_value")]
     enum_type_value: Option<String>,
     // 类型的属性值
     props: Vec<Property>,
     // 类型的模板
-    #[serde(rename = "typeTemplate")]
-    type_template: Option<TypeTemplate>,
+    #[serde(rename = "type_template")]
+    type_template: TypeTemplate,
+    // 注释
+    desc: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -50,7 +55,7 @@ struct TemplateData {
     nullable: bool,
     // 一个个类型
     list: Vec<TypeDefinition>,
-    is_enum: bool,
+    type_template: TypeTemplate,
 }
 
 #[tokio::main]
@@ -66,9 +71,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         equal_symbol: None,
         list: vec![
             TypeDefinition {
-                type_name: "User".to_string(),
+                type_name: "user".to_string(),
                 enum_type_value: None,
-                is_enum: false,
+                type_template: TypeTemplate::Interface,
+                desc: Some("用户角色".to_string()),
                 props: vec![
                     Property {
                         name: Some("id".to_string()),
@@ -94,8 +100,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ],
             },
             TypeDefinition {
+                type_name: "userRole2".to_string(),
+                desc: Some("用户角色2".to_string()),
+                enum_type_value: None,
+                type_template: TypeTemplate::ConstAsEnum,
+                props: vec![
+                    Property {
+                        name: Some("success".to_string()),
+                        ref_path: None,
+                        prop_type: "boolean".to_string(),
+                        required: true,
+                        desc: Some("是否成功".to_string()),
+                    },
+                ],
+            },
+            TypeDefinition {
                 type_name: "UserRole".to_string(),
-                is_enum: false,
+                desc: Some("用户角色".to_string()),
+                type_template: TypeTemplate::Enum,
                 enum_type_value: Some("'admin' | 'user' | 'guest'".to_string()),
                 props: vec![
                     Property {
@@ -103,20 +125,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         ref_path: None,
                         prop_type: "boolean".to_string(),
                         required: true,
-                        desc: None,
+                        desc: Some("是否成功".to_string()),
+                    },
+                    Property {
+                        name: Some("data".to_string()),
+                        ref_path: Some("#/definitions/User".to_string()),
+                        prop_type: "User".to_string(),
+                        required: false,
+                        desc: Some("响应数据".to_string()),
                     }],
             },
             TypeDefinition {
                 type_name: "ApiResponse".to_string(),
                 enum_type_value: None,
-                is_enum: false,
+                type_template: TypeTemplate::Interface,
+                desc: Some("API响应".to_string()),
                 props: vec![
                     Property {
                         name: Some("success".to_string()),
                         ref_path: None,
                         prop_type: "boolean".to_string(),
                         required: true,
-                        desc: None,
+                        desc: Some("是否成功".to_string()),
                     },
                     Property {
                         name: Some("data".to_string()),
@@ -128,7 +158,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ],
             },
         ],
-        is_enum: false,
+        type_template: TypeTemplate::Interface,
     };
 
     // 创建上下文并添加数据
@@ -138,7 +168,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     context.insert("equalSymbol", &template_data.equal_symbol);
     context.insert("nullable", &template_data.nullable);
     context.insert("list", &template_data.list);
-    context.insert("isEnum", &template_data.is_enum);
+    // context.insert("isEnum", &template_data.is_enum);
+    context.insert("typeTemplate", &template_data.type_template);
 
     // 渲染模板
     let rendered = tera.render("interface.tera", &context)?;
