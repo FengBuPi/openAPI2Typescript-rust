@@ -34,10 +34,6 @@ struct TypeDefinition {
     // 类型名称
     #[serde(rename = "type_name")]
     type_name: String,
-    // 给枚举使用的类型，is_enum为false 且 props为空数组就生成字符串枚举
-    // props 不为空， 该属性不生效
-    #[serde(rename = "enum_type_value")]
-    enum_type_value: Option<String>,
     // 类型的属性值
     props: Vec<Property>,
     // 类型的模板
@@ -72,7 +68,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         list: vec![
             TypeDefinition {
                 type_name: "user".to_string(),
-                enum_type_value: None,
                 type_template: TypeTemplate::Interface,
                 desc: Some("用户角色".to_string()),
                 props: vec![
@@ -102,7 +97,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             TypeDefinition {
                 type_name: "userRole2".to_string(),
                 desc: Some("用户角色2".to_string()),
-                enum_type_value: None,
                 type_template: TypeTemplate::ConstAsEnum,
                 props: vec![
                     Property {
@@ -118,7 +112,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 type_name: "UserRole".to_string(),
                 desc: Some("用户角色".to_string()),
                 type_template: TypeTemplate::Enum,
-                enum_type_value: Some("'admin' | 'user' | 'guest'".to_string()),
                 props: vec![
                     Property {
                         name: Some("success".to_string()),
@@ -137,7 +130,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             TypeDefinition {
                 type_name: "ApiResponse".to_string(),
-                enum_type_value: None,
                 type_template: TypeTemplate::Interface,
                 desc: Some("API响应".to_string()),
                 props: vec![
