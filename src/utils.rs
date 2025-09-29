@@ -404,7 +404,7 @@ fn convert_string_type(
             desc: description.clone(),
             basic_type: BasicType::String,
             values,
-            enum_type_template: EnumTypeTemplate::Enum,
+            enum_type_template: EnumTypeTemplate::Union,
         })
     } else {
         Ok(TypeDefinition::Basic {
@@ -454,7 +454,7 @@ fn convert_number_type(
             desc: description.clone(),
             basic_type: BasicType::Number,
             values,
-            enum_type_template: EnumTypeTemplate::Enum,
+            enum_type_template: EnumTypeTemplate::Union,
         })
     } else {
         Ok(TypeDefinition::Basic {
@@ -546,9 +546,10 @@ fn convert_enum_values(
 
     for enum_value in enumeration {
         if let Some(value) = enum_value {
-            let enum_name = generate_enum_name(value);
+            // todo: 以后的新功能：当用户设置生成enum模式时使用这种方式
+            // let enum_name = generate_enum_name(value);
             values.push(EnumValue {
-                name: Some(enum_name),
+                name: None,
                 value: value.clone(),
                 desc: None,
             });
@@ -567,6 +568,8 @@ fn convert_integer_enum_values(
     for enum_value in enumeration {
         if let Some(value) = enum_value {
             let value_str = value.to_string();
+            // todo: 以后的新功能：当用户设置生成enum模式时使用这种方式
+            // let enum_name = generate_enum_name(&value_str);
             values.push(EnumValue {
                 name: None,
                 value: value_str,
@@ -587,9 +590,10 @@ fn convert_number_enum_values(
     for enum_value in enumeration {
         if let Some(value) = enum_value {
             let value_str = value.to_string();
-            let enum_name = generate_enum_name(&value_str);
+            // todo: 以后的新功能：当用户设置生成enum模式时使用这种方式，把enum_name给下面的name
+            // let enum_name = generate_enum_name(&value_str);
             values.push(EnumValue {
-                name: Some(enum_name),
+                name: None,
                 value: value_str,
                 desc: None,
             });
@@ -597,6 +601,65 @@ fn convert_number_enum_values(
     }
 
     Ok(values)
+}
+
+// ============================================================================
+// 对象类型转换函数
+// ============================================================================
+
+/// 将 OpenAPI 对象类型转换为 TypeScript 类型字符串
+///
+/// # 功能说明
+/// 根据 OpenAPI 对象类型的 `additional_properties` 属性来决定生成的 TypeScript 类型：
+/// - 如果 `additional_properties` 为 `true`：生成 `Record<string, any>`
+/// - 如果 `additional_properties` 为 `false`：生成 `Record<string, never>`
+/// - 如果 `additional_properties` 为具体的 Schema：递归处理该 Schema 类型
+/// - 如果没有 `additional_properties`：默认为 `Record<string, any>`
+///
+/// # 参数
+/// * `object_type` - OpenAPI 对象类型定义
+///
+/// # 返回值
+/// * `Ok(String)` - 转换后的 TypeScript 类型字符串
+/// * `Err(Box<dyn std::error::Error>)` - 转换过程中的错误
+///
+/// # 类型映射规则
+/// - `additional_properties: true` → `Record<string, any>`
+/// - `additional_properties: false` → `Record<string, never>`
+/// - `additional_properties: Schema` → `Record<string, SchemaType>`
+/// - 无 `additional_properties` → `Record<string, any>`
+fn convert_object_type_to_typescript(
+    object_type: &openapiv3::ObjectType,
+) -> Result<String, Box<dyn std::error::Error>> {
+    match &object_type.additional_properties {
+        Some(additional_properties) => {
+            match additional_properties {
+                // additional_properties: true - 允许任意属性，类型为 any
+                openapiv3::AdditionalProperties::Any(true) => Ok("Record<string, any>".to_string()),
+                // additional_properties: false - 不允许额外属性
+                openapiv3::AdditionalProperties::Any(false) => {
+                    Ok("Record<string, never>".to_string())
+                }
+                // additional_properties: Schema - 额外属性必须符合指定 Schema
+                openapiv3::AdditionalProperties::Schema(schema_ref) => {
+                    // schema_ref 是 Box<ReferenceOr<Schema>>，需要转换为 ReferenceOr<Box<Schema>>
+                    let value_type = match schema_ref.as_ref() {
+                        ReferenceOr::Item(schema) => get_typescript_type_recursive(
+                            &ReferenceOr::Item(Box::new(schema.clone())),
+                        )?,
+                        ReferenceOr::Reference { reference } => {
+                            get_typescript_type_recursive(&ReferenceOr::Reference {
+                                reference: reference.clone(),
+                            })?
+                        }
+                    };
+                    Ok(format!("Record<string, {}>", value_type))
+                }
+            }
+        }
+        // 没有 additional_properties 定义，默认为允许任意属性
+        None => Ok("Record<string, any>".to_string()),
+    }
 }
 
 // ============================================================================
@@ -645,7 +708,10 @@ fn get_typescript_type_recursive(
                                 Ok("any[]".to_string())
                             }
                         }
-                        openapiv3::Type::Object(_) => Ok("Record<string, any>".to_string()),
+                        // 对象类型处理
+                        openapiv3::Type::Object(object_type) => {
+                            convert_object_type_to_typescript(object_type)
+                        }
                     }
                 }
                 _ => Ok("any".to_string()),
@@ -676,6 +742,9 @@ fn convert_property(
     prop_name: &str,
     prop_schema_ref: &ReferenceOr<Box<Schema>>,
 ) -> Result<Property, Box<dyn std::error::Error>> {
+    if prop_name == "status_count" {
+        println!("prop_name: {}", prop_name);
+    }
     // 使用递归函数获取 TypeScript 类型
     let prop_type = get_typescript_type_recursive(prop_schema_ref)?;
 
