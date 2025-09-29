@@ -254,7 +254,7 @@ pub fn generate_typescript_types() -> Result<String, Box<dyn std::error::Error>>
             TypeDefinition {
                 type_name: "Language".to_string(),
                 type_kind: TypeScriptBasicType::String,
-                object_type_template: ObjectTypeTemplate::Interface,
+                object_type_template: ObjectTypeTemplate::Type,
                 is_enum: true,
                 enum_type_template: EnumTypeTemplate::Union,
                 desc: Some("语言联合类型".to_string()),
@@ -283,7 +283,7 @@ pub fn generate_typescript_types() -> Result<String, Box<dyn std::error::Error>>
             TypeDefinition {
                 type_name: "ApiKey".to_string(),
                 type_kind: TypeScriptBasicType::String,
-                object_type_template: ObjectTypeTemplate::Interface,
+                object_type_template: ObjectTypeTemplate::Type,
                 is_enum: false,
                 enum_type_template: EnumTypeTemplate::Enum,
                 desc: Some("API密钥类型".to_string()),
@@ -293,7 +293,7 @@ pub fn generate_typescript_types() -> Result<String, Box<dyn std::error::Error>>
             TypeDefinition {
                 type_name: "UserId".to_string(),
                 type_kind: TypeScriptBasicType::Number,
-                object_type_template: ObjectTypeTemplate::Interface,
+                object_type_template: ObjectTypeTemplate::Type,
                 is_enum: false,
                 enum_type_template: EnumTypeTemplate::Enum,
                 desc: Some("用户ID类型".to_string()),
@@ -303,7 +303,7 @@ pub fn generate_typescript_types() -> Result<String, Box<dyn std::error::Error>>
             TypeDefinition {
                 type_name: "IsActive".to_string(),
                 type_kind: TypeScriptBasicType::Boolean,
-                object_type_template: ObjectTypeTemplate::Interface,
+                object_type_template: ObjectTypeTemplate::Type,
                 is_enum: false,
                 enum_type_template: EnumTypeTemplate::Enum,
                 desc: Some("激活状态类型".to_string()),
