@@ -97,7 +97,7 @@ pub fn generate_typescript_types(
     // 初始化 Tera 模板引擎
     let tera = Tera::new("templates/**/*.tera")?;
 
-    // 创建示例数据 - 使用新的专一性设计
+    // 创建示例数据 - 使用专一性设计
     // let template_data = TemplateData {
     //     namespace: "MyAPI".to_string(),
     //     declare_type: "interface".to_string(),
