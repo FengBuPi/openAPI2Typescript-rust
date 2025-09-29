@@ -378,58 +378,45 @@ fn convert_schema_to_type_definition(
     }
 }
 
+/// 递归获取 TypeScript 类型，支持嵌套数组
+/// 这个函数会递归处理数组类型，直到找到最底层的元素类型
+fn get_typescript_type_recursive(
+    schema_ref: &ReferenceOr<Box<Schema>>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    match schema_ref {
+        ReferenceOr::Item(schema) => match &schema.schema_kind {
+            openapiv3::SchemaKind::Type(type_kind) => {
+                match type_kind {
+                    openapiv3::Type::String(_) => Ok("string".to_string()),
+                    openapiv3::Type::Number(_) => Ok("number".to_string()),
+                    openapiv3::Type::Integer(_) => Ok("number".to_string()),
+                    openapiv3::Type::Boolean(_) => Ok("boolean".to_string()),
+                    openapiv3::Type::Array(array_type) => {
+                        // 递归处理数组元素类型
+                        if let Some(items) = &array_type.items {
+                            let item_type = get_typescript_type_recursive(items)?;
+                            Ok(format!("{}[]", item_type))
+                        } else {
+                            Ok("any[]".to_string())
+                        }
+                    }
+                    openapiv3::Type::Object(_) => Ok("Record<string, any>".to_string()),
+                }
+            }
+            _ => Ok("any".to_string()),
+        },
+        ReferenceOr::Reference { reference } => Ok(extract_type_name_from_ref(reference)),
+    }
+}
+
 /// 处理 schema.[类型名称].properties.[属性名称:prop_name]的值:prop_schema_ref
 /// 返回属性名称、属性类型、是否必需、描述
 fn convert_property(
     prop_name: &str,
     prop_schema_ref: &ReferenceOr<Box<Schema>>,
 ) -> Result<Property, Box<dyn std::error::Error>> {
-    let (prop_type, _ref_path) = match prop_schema_ref {
-        ReferenceOr::Item(schema) => match &schema.schema_kind {
-            openapiv3::SchemaKind::Type(type_kind) => {
-                let ts_type = match type_kind {
-                    openapiv3::Type::String(_) => "string".to_string(),
-                    openapiv3::Type::Number(_) => "number".to_string(),
-                    openapiv3::Type::Integer(_) => "number".to_string(),
-                    openapiv3::Type::Boolean(_) => "boolean".to_string(),
-                    openapiv3::Type::Array(array_type) => {
-                        // 处理数组类型，获取数组元素的类型
-                        if let Some(items) = &array_type.items {
-                            match items {
-                                ReferenceOr::Item(item_schema) => match &item_schema.schema_kind {
-                                    openapiv3::SchemaKind::Type(item_type_kind) => {
-                                        let item_type = match item_type_kind {
-                                            openapiv3::Type::String(_) => "string",
-                                            openapiv3::Type::Number(_) => "number",
-                                            openapiv3::Type::Integer(_) => "number",
-                                            openapiv3::Type::Boolean(_) => "boolean",
-                                            openapiv3::Type::Array(_) => "any[]",
-                                            openapiv3::Type::Object(_) => "Record<string, any>",
-                                        };
-                                        format!("{}[]", item_type)
-                                    }
-                                    _ => "any[]".to_string(),
-                                },
-                                ReferenceOr::Reference { reference } => {
-                                    // 如果是引用，提取类型名称
-                                    format!("{}[]", extract_type_name_from_ref(reference))
-                                }
-                            }
-                        } else {
-                            "any[]".to_string()
-                        }
-                    }
-                    openapiv3::Type::Object(_) => "Record<string, any>".to_string(),
-                };
-                (ts_type, None)
-            }
-            _ => ("any".to_string(), None),
-        },
-        ReferenceOr::Reference { reference } => (
-            extract_type_name_from_ref(reference),
-            Some(reference.clone()),
-        ),
-    };
+    // 使用递归函数获取 TypeScript 类型
+    let prop_type = get_typescript_type_recursive(prop_schema_ref)?;
 
     // 提取 description
     let desc = match prop_schema_ref {
