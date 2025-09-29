@@ -96,6 +96,64 @@ fn is_valid_typescript_identifier(name: &str) -> bool {
     !reserved_keywords.contains(&name)
 }
 
+/// 为枚举值生成合适的 TypeScript 标识符名称
+///
+/// 此函数将 OpenAPI 规范中的枚举值转换为符合 TypeScript 标识符规则的名称，
+/// 用于生成 TypeScript 枚举的键名。
+///
+/// # 转换规则
+///
+/// 1. **字符转换**：所有字母数字字符转换为大写
+/// 2. **特殊字符处理**：非字母数字字符（如 `-`, ` `, `.`, `@` 等）替换为下划线 `_`
+/// 3. **标识符验证**：确保生成的名称以字母开头，如果不是则添加 `VALUE_` 前缀
+///
+/// # 参数
+///
+/// * `value` - OpenAPI 规范中的原始枚举值（字符串形式）
+///
+/// # 返回值
+///
+/// 返回符合 TypeScript 标识符规则的名称字符串
+///
+/// # 示例
+///
+/// ```rust
+/// assert_eq!(generate_enum_name("pending"), "PENDING");
+/// assert_eq!(generate_enum_name("in-progress"), "IN_PROGRESS");
+/// assert_eq!(generate_enum_name("on hold"), "ON_HOLD");
+/// assert_eq!(generate_enum_name("123abc"), "VALUE_123ABC");
+/// assert_eq!(generate_enum_name("@special"), "VALUE__SPECIAL");
+/// assert_eq!(generate_enum_name(""), "VALUE_");
+/// ```
+///
+/// # 使用场景
+///
+/// 在将 OpenAPI 枚举转换为 TypeScript 枚举时使用，确保生成的枚举键名：
+/// - 符合 TypeScript 标识符语法规则
+/// - 具有良好的可读性
+/// - 避免命名冲突
+/// - 保持一致性
+fn generate_enum_name(value: &str) -> String {
+    // 将值转换为大写，替换特殊字符为下划线
+    let name = value
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() {
+                c.to_uppercase().next().unwrap()
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+
+    // 确保名称以字母开头
+    if name.chars().next().map_or(false, |c| !c.is_alphabetic()) {
+        format!("VALUE_{}", name)
+    } else {
+        name
+    }
+}
+
 pub fn openapi_to_template_data_list(
     openapi_spec: &OpenAPI,
 ) -> Result<Vec<TypeDefinition>, Box<dyn std::error::Error>> {
@@ -114,14 +172,12 @@ pub fn openapi_to_template_data_list(
     Ok(type_definitions)
 }
 
-// 处理对象类型
 fn convert_schema_to_type_definition(
     schema_name: &str,
     schema_ref: &ReferenceOr<Schema>,
 ) -> Result<TypeDefinition, Box<dyn std::error::Error>> {
     let mut props = Vec::new();
-    let mut type_value = BasicType::Any; // 默认类型
-                                         // 类型名称 - 提取并转换为 PascalCase
+    // 类型名称
     let type_name = schema_name.split('.').last().unwrap().to_pascal_case();
 
     match schema_ref {
@@ -151,94 +207,95 @@ fn convert_schema_to_type_definition(
                             });
                         }
                         openapiv3::Type::String(string_type) => {
-                            type_value = BasicType::String;
                             // 检查是否是枚举类型
                             if !string_type.enumeration.is_empty() {
                                 let mut values = Vec::new();
-                                for (index, enum_value) in
-                                    string_type.enumeration.iter().enumerate()
-                                {
-                                    values.push(EnumValue {
-                                        name: None,
-                                        value: enum_value.clone().unwrap(),
-                                        desc: None,
-                                    });
+                                for enum_value in &string_type.enumeration {
+                                    if let Some(value) = enum_value {
+                                        // 为枚举值生成合适的名称
+                                        let enum_name = generate_enum_name(value);
+                                        values.push(EnumValue {
+                                            name: Some(enum_name),
+                                            value: value.clone(),
+                                            desc: None,
+                                        });
+                                    }
                                 }
                                 return Ok(TypeDefinition::Enum {
                                     type_name,
-                                    desc: None,
-                                    basic_type: type_value,
+                                    desc: schema.schema_data.description.clone(),
+                                    basic_type: BasicType::String,
                                     values,
                                     enum_type_template: EnumTypeTemplate::Enum,
                                 });
                             } else {
                                 return Ok(TypeDefinition::Basic {
                                     type_name,
-                                    desc: None,
-                                    basic_type: type_value,
+                                    desc: schema.schema_data.description.clone(),
+                                    basic_type: BasicType::String,
                                 });
                             }
                         }
                         openapiv3::Type::Integer(integer_type) => {
-                            type_value = BasicType::Number;
                             if !integer_type.enumeration.is_empty() {
                                 let mut values = Vec::new();
-                                for (_index, enum_value) in
-                                    integer_type.enumeration.iter().enumerate()
-                                {
-                                    values.push(EnumValue {
-                                        name: None,
-                                        value: enum_value.unwrap().to_string(),
-                                        desc: None,
-                                    });
+                                for enum_value in &integer_type.enumeration {
+                                    if let Some(value) = enum_value {
+                                        let enum_name = generate_enum_name(&value.to_string());
+                                        values.push(EnumValue {
+                                            name: Some(enum_name),
+                                            value: value.to_string(),
+                                            desc: None,
+                                        });
+                                    }
                                 }
                                 return Ok(TypeDefinition::Enum {
                                     type_name,
-                                    desc: None,
-                                    basic_type: type_value,
+                                    desc: schema.schema_data.description.clone(),
+                                    basic_type: BasicType::Number,
                                     values,
                                     enum_type_template: EnumTypeTemplate::Enum,
                                 });
                             } else {
                                 return Ok(TypeDefinition::Basic {
                                     type_name,
-                                    desc: None,
-                                    basic_type: type_value,
+                                    desc: schema.schema_data.description.clone(),
+                                    basic_type: BasicType::Number,
                                 });
                             }
                         }
                         openapiv3::Type::Number(number_type) => {
-                            type_value = BasicType::Number;
                             if !number_type.enumeration.is_empty() {
                                 let mut values = Vec::new();
-                                for (_index, enum_value) in
-                                    number_type.enumeration.iter().enumerate()
-                                {
-                                    values.push(EnumValue {
-                                        name: None,
-                                        value: enum_value.unwrap().to_string(),
-                                        desc: None,
-                                    });
+                                for enum_value in &number_type.enumeration {
+                                    if let Some(value) = enum_value {
+                                        let enum_name = generate_enum_name(&value.to_string());
+                                        values.push(EnumValue {
+                                            name: Some(enum_name),
+                                            value: value.to_string(),
+                                            desc: None,
+                                        });
+                                    }
                                 }
                                 return Ok(TypeDefinition::Enum {
                                     type_name,
-                                    desc: None,
-                                    basic_type: type_value,
+                                    desc: schema.schema_data.description.clone(),
+                                    basic_type: BasicType::Number,
                                     values,
                                     enum_type_template: EnumTypeTemplate::Enum,
                                 });
                             } else {
                                 return Ok(TypeDefinition::Basic {
                                     type_name,
-                                    desc: None,
-                                    basic_type: type_value,
+                                    desc: schema.schema_data.description.clone(),
+                                    basic_type: BasicType::Number,
                                 });
                             }
                         }
                         openapiv3::Type::Boolean(_) => {
                             return Ok(TypeDefinition::Basic {
                                 type_name,
-                                desc: None,
+                                desc: schema.schema_data.description.clone(),
                                 basic_type: BasicType::Boolean,
                             });
                         }
@@ -276,7 +333,7 @@ fn convert_schema_to_type_definition(
                             }
                             return Ok(TypeDefinition::Object {
                                 type_name,
-                                desc: None,
+                                desc: schema.schema_data.description.clone(),
                                 props,
                                 object_type_template: ObjectTypeTemplate::Interface,
                             });
@@ -294,7 +351,7 @@ fn convert_schema_to_type_definition(
                     }
                     return Ok(TypeDefinition::Object {
                         type_name,
-                        desc: None,
+                        desc: None, // AnySchema 没有 description 字段
                         props,
                         object_type_template: ObjectTypeTemplate::Interface,
                     });
@@ -303,14 +360,14 @@ fn convert_schema_to_type_definition(
                     // 处理其他类型
                     return Ok(TypeDefinition::Basic {
                         type_name,
-                        desc: None,
+                        desc: schema.schema_data.description.clone(),
                         basic_type: BasicType::Any,
                     });
                 }
             }
         }
         // 引用定义
-        ReferenceOr::Reference { reference } => {
+        ReferenceOr::Reference { reference: _ } => {
             // 处理引用类型
             return Ok(TypeDefinition::Basic {
                 type_name,
@@ -339,23 +396,20 @@ fn convert_property(
                         // 处理数组类型，获取数组元素的类型
                         if let Some(items) = &array_type.items {
                             match items {
-                                ReferenceOr::Item(item_schema) => {
-                                    // 如果是内联定义，递归处理
-                                    match &item_schema.schema_kind {
-                                        openapiv3::SchemaKind::Type(item_type_kind) => {
-                                            let item_type = match item_type_kind {
-                                                openapiv3::Type::String(_) => "string",
-                                                openapiv3::Type::Number(_) => "number",
-                                                openapiv3::Type::Integer(_) => "number",
-                                                openapiv3::Type::Boolean(_) => "boolean",
-                                                openapiv3::Type::Array(_) => "any[]",
-                                                openapiv3::Type::Object(_) => "Record<string, any>",
-                                            };
-                                            format!("{}[]", item_type)
-                                        }
-                                        _ => "any[]".to_string(),
+                                ReferenceOr::Item(item_schema) => match &item_schema.schema_kind {
+                                    openapiv3::SchemaKind::Type(item_type_kind) => {
+                                        let item_type = match item_type_kind {
+                                            openapiv3::Type::String(_) => "string",
+                                            openapiv3::Type::Number(_) => "number",
+                                            openapiv3::Type::Integer(_) => "number",
+                                            openapiv3::Type::Boolean(_) => "boolean",
+                                            openapiv3::Type::Array(_) => "any[]",
+                                            openapiv3::Type::Object(_) => "Record<string, any>",
+                                        };
+                                        format!("{}[]", item_type)
                                     }
-                                }
+                                    _ => "any[]".to_string(),
+                                },
                                 ReferenceOr::Reference { reference } => {
                                     // 如果是引用，提取类型名称
                                     format!("{}[]", extract_type_name_from_ref(reference))
@@ -377,11 +431,17 @@ fn convert_property(
         ),
     };
 
+    // 提取 description
+    let desc = match prop_schema_ref {
+        ReferenceOr::Item(schema) => schema.schema_data.description.clone(),
+        ReferenceOr::Reference { .. } => None,
+    };
+
     Ok(Property {
         name: prop_name.to_string(),
         prop_type,
         required: true, // 简化处理，假设所有属性都是必需的
-        desc: None,
+        desc,
     })
 }
 
