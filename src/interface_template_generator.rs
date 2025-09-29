@@ -12,6 +12,7 @@ pub enum TypeTemplate {
     /// 常量对象键类型提取模式
     #[serde(rename = "const_as_enum")]
     ConstAsEnum,
+    /// 联合类型
     #[serde(rename = "union")]
     Union,
 }
@@ -20,8 +21,6 @@ pub enum TypeTemplate {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Property {
     pub name: Option<String>,
-    #[serde(rename = "ref_path")]
-    pub ref_path: Option<String>,
     #[serde(rename = "prop_type")]
     pub prop_type: String,
     pub required: bool,
@@ -54,103 +53,105 @@ pub struct TemplateData {
     pub type_template: TypeTemplate,
 }
 
-pub fn generate_typescript_types() -> Result<String, Box<dyn std::error::Error>> {
+pub fn generate_typescript_types(
+    template_data: &TemplateData,
+) -> Result<String, Box<dyn std::error::Error>> {
     // 初始化 Tera 模板引擎
     let tera = Tera::new("templates/**/*.tera")?;
-    
+
     // 创建示例数据
-    let template_data = TemplateData {
-        namespace: "MyAPI".to_string(),
-        declare_type: "interface".to_string(),
-        nullable: true,
-        equal_symbol: None,
-        list: vec![
-            TypeDefinition {
-                type_name: "user".to_string(),
-                type_template: TypeTemplate::Interface,
-                desc: Some("用户角色".to_string()),
-                props: vec![
-                    Property {
-                        name: Some("id".to_string()),
-                        ref_path: None,
-                        prop_type: "number".to_string(),
-                        required: true,
-                        desc: Some("用户唯一标识符".to_string()),
-                    },
-                    Property {
-                        name: Some("name".to_string()),
-                        ref_path: None,
-                        prop_type: "string".to_string(),
-                        required: true,
-                        desc: Some("用户姓名".to_string()),
-                    },
-                    Property {
-                        name: Some("email".to_string()),
-                        ref_path: None,
-                        prop_type: "string".to_string(),
-                        required: false,
-                        desc: Some("用户邮箱地址".to_string()),
-                    },
-                ],
-            },
-            TypeDefinition {
-                type_name: "userRole2".to_string(),
-                desc: Some("用户角色2".to_string()),
-                type_template: TypeTemplate::ConstAsEnum,
-                props: vec![
-                    Property {
-                        name: Some("success".to_string()),
-                        ref_path: None,
-                        prop_type: "boolean".to_string(),
-                        required: true,
-                        desc: Some("是否成功".to_string()),
-                    },
-                ],
-            },
-            TypeDefinition {
-                type_name: "UserRole".to_string(),
-                desc: Some("用户角色".to_string()),
-                type_template: TypeTemplate::Enum,
-                props: vec![
-                    Property {
-                        name: Some("success".to_string()),
-                        ref_path: None,
-                        prop_type: "boolean".to_string(),
-                        required: true,
-                        desc: Some("是否成功".to_string()),
-                    },
-                    Property {
-                        name: Some("data".to_string()),
-                        ref_path: Some("#/definitions/User".to_string()),
-                        prop_type: "User".to_string(),
-                        required: false,
-                        desc: Some("响应数据".to_string()),
-                    }],
-            },
-            TypeDefinition {
-                type_name: "ApiResponse".to_string(),
-                type_template: TypeTemplate::Interface,
-                desc: Some("API响应".to_string()),
-                props: vec![
-                    Property {
-                        name: Some("success".to_string()),
-                        ref_path: None,
-                        prop_type: "boolean".to_string(),
-                        required: true,
-                        desc: Some("是否成功".to_string()),
-                    },
-                    Property {
-                        name: Some("data".to_string()),
-                        ref_path: Some("#/definitions/User".to_string()),
-                        prop_type: "User".to_string(),
-                        required: false,
-                        desc: Some("响应数据".to_string()),
-                    },
-                ],
-            },
-        ],
-        type_template: TypeTemplate::Interface,
-    };
+    // let template_data = TemplateData {
+    //     namespace: "MyAPI".to_string(),
+    //     declare_type: "interface".to_string(),
+    //     nullable: true,
+    //     equal_symbol: None,
+    //     list: vec![
+    //         TypeDefinition {
+    //             type_name: "user".to_string(),
+    //             type_template: TypeTemplate::Interface,
+    //             desc: Some("用户角色".to_string()),
+    //             props: vec![
+    //                 Property {
+    //                     name: Some("id".to_string()),
+    //                     ref_path: None,
+    //                     prop_type: "number".to_string(),
+    //                     required: true,
+    //                     desc: Some("用户唯一标识符".to_string()),
+    //                 },
+    //                 Property {
+    //                     name: Some("name".to_string()),
+    //                     ref_path: None,
+    //                     prop_type: "string".to_string(),
+    //                     required: true,
+    //                     desc: Some("用户姓名".to_string()),
+    //                 },
+    //                 Property {
+    //                     name: Some("email".to_string()),
+    //                     ref_path: None,
+    //                     prop_type: "string".to_string(),
+    //                     required: false,
+    //                     desc: Some("用户邮箱地址".to_string()),
+    //                 },
+    //             ],
+    //         },
+    //         TypeDefinition {
+    //             type_name: "userRole2".to_string(),
+    //             desc: Some("用户角色2".to_string()),
+    //             type_template: TypeTemplate::ConstAsEnum,
+    //             props: vec![
+    //                 Property {
+    //                     name: Some("success".to_string()),
+    //                     ref_path: None,
+    //                     prop_type: "boolean".to_string(),
+    //                     required: true,
+    //                     desc: Some("是否成功".to_string()),
+    //                 },
+    //             ],
+    //         },
+    //         TypeDefinition {
+    //             type_name: "UserRole".to_string(),
+    //             desc: Some("用户角色".to_string()),
+    //             type_template: TypeTemplate::Enum,
+    //             props: vec![
+    //                 Property {
+    //                     name: Some("success".to_string()),
+    //                     ref_path: None,
+    //                     prop_type: "boolean".to_string(),
+    //                     required: true,
+    //                     desc: Some("是否成功".to_string()),
+    //                 },
+    //                 Property {
+    //                     name: Some("data".to_string()),
+    //                     ref_path: Some("#/definitions/User".to_string()),
+    //                     prop_type: "User".to_string(),
+    //                     required: false,
+    //                     desc: Some("响应数据".to_string()),
+    //                 }],
+    //         },
+    //         TypeDefinition {
+    //             type_name: "ApiResponse".to_string(),
+    //             type_template: TypeTemplate::Interface,
+    //             desc: Some("API响应".to_string()),
+    //             props: vec![
+    //                 Property {
+    //                     name: Some("success".to_string()),
+    //                     ref_path: None,
+    //                     prop_type: "boolean".to_string(),
+    //                     required: true,
+    //                     desc: Some("是否成功".to_string()),
+    //                 },
+    //                 Property {
+    //                     name: Some("data".to_string()),
+    //                     ref_path: Some("#/definitions/User".to_string()),
+    //                     prop_type: "User".to_string(),
+    //                     required: false,
+    //                     desc: Some("响应数据".to_string()),
+    //                 },
+    //             ],
+    //         },
+    //     ],
+    //     type_template: TypeTemplate::Interface,
+    // };
 
     // 创建上下文并添加数据
     let mut context = Context::new();
@@ -163,6 +164,6 @@ pub fn generate_typescript_types() -> Result<String, Box<dyn std::error::Error>>
 
     // 渲染模板
     let rendered = tera.render("interface.tera", &context)?;
-    
+
     Ok(rendered)
 }

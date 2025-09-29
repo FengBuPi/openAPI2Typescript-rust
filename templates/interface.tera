@@ -5,20 +5,20 @@ declare namespace {{ namespace }} {
   /** {{ type.desc }} */
 {%- endif %}
 {%- if type.type_template == "interface" %}
-  interface {{ type.type_name | title }} {
+  interface {{ type.type_name  }} {
 {%- for prop in type.props %}
 {%- if prop.desc %}
     /** {{ prop.desc }} */
 {%- endif %}
 {%- if prop.required %}
-    '{{ prop.name }}': {{ prop.prop_type }};
+    {{ prop.name }}: {{ prop.prop_type }};
 {%- else %}
-    '{{ prop.name }}'?: {{ prop.prop_type }};
+    {{ prop.name }}?: {{ prop.prop_type }};
 {%- endif %}
 {%- endfor %}
   }
 {%- elif type.type_template == "type" %}
-  type {{ type.type_name | title }} = {
+  type {{ type.type_name  }} = {
 {%- for prop in type.props %}
 {%- if prop.desc %}
     /** {{ prop.desc }} */
@@ -27,22 +27,22 @@ declare namespace {{ namespace }} {
 {%- endfor %}
   };
 {%- elif type.type_template == "enum" %}
-  enum {{ type.type_name | title }} {
+  enum {{ type.type_name  }} {
 {%- for prop in type.props %}
     {{ prop.name }} = "{{ prop.name }}",
 {%- endfor %}
   }
 {%- elif type.type_template == "const_as_enum" %}
-  const {{ type.type_name | title }}: {
+  const {{ type.type_name  }}: {
 {%- for prop in type.props %}
     readonly {{ prop.name }}: "{{ prop.name }}",
 {%- endfor %}
   };
-  type {{ type.type_name | title }} = keyof typeof {{ type.type_name | title }};
+  type {{ type.type_name  }} = keyof typeof {{ type.type_name  }};
 {%- elif type.type_template == "union" %}
-  type {{ type.type_name | title }} = 
+  type {{ type.type_name  }} = 
 {%- for prop in type.props %}
-    {{ prop.prop_type }}{%- if not loop.last %} | {%- endif %}
+    '{{ prop.prop_type }}'{%- if not loop.last %} | {%- endif %}
 {%- endfor %};
 {%- endif %}
 {%- else %}
@@ -50,12 +50,12 @@ declare namespace {{ namespace }} {
 {%- if type.desc %}
   /** {{ type.desc }} */
 {%- endif %}
-  interface {{ type.type_name | title }} {
+  interface {{ type.type_name  }} {
 {%- for prop in type.props %}
 {%- if prop.desc %}
     /** {{ prop.desc }} */
 {%- endif %}
-    '{{ prop.name }}': {{ prop.prop_type }};
+    {{ prop.name }}: {{ prop.prop_type }};
 {%- endfor %}
   }
 {%- endif %}
