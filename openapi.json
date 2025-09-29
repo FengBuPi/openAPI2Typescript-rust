@@ -21267,15 +21267,7 @@
                 ]
             },
             "constant.DeliverVideoUrlType": {
-                "type": "string",
-                "enum": [
-                    "source",
-                    "transcode"
-                ],
-                "x-enum-varnames": [
-                    "SourceURL",
-                    "TranscodeURL"
-                ]
+                "type": "string"
             },
             "constant.ExportTaskStatus": {
                 "type": "integer",

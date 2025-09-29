@@ -1,63 +1,86 @@
+{#- 模版的渲染逻辑如下：
+对于每一个类型，
+第一步先判断is_enum属性是否为true，如果是，再判断是什么数据类型，如果不是数字或者字符串，就不处理，只处理是数字和字符串的情况。
+第二步，用type_kind判断是什么数据类型，如果是object，则在根据是什么对象模版，来渲染对应的ts对象类型的代码，如果是基本数据类型，则只可能是使用type关键字来渲染对应的ts类型 -#}
 declare namespace {{ namespace }} {
-{%- for type in list %}
-{%- if type.type_template %}
-{%- if type.desc %}
-  /** {{ type.desc }} */
-{%- endif %}
-{%- if type.type_template == "interface" %}
-  interface {{ type.type_name  }} {
-{%- for prop in type.props %}
-{%- if prop.desc %}
-    /** {{ prop.desc }} */
-{%- endif %}
-{%- if prop.required %}
-    {{ prop.name }}: {{ prop.prop_type }};
-{%- else %}
-    {{ prop.name }}?: {{ prop.prop_type }};
-{%- endif %}
-{%- endfor %}
-  }
-{%- elif type.type_template == "type" %}
-  type {{ type.type_name  }} = {
-{%- for prop in type.props %}
-{%- if prop.desc %}
-    /** {{ prop.desc }} */
-{%- endif %}
-    '{{ prop.name }}': {{ prop.prop_type }};
-{%- endfor %}
-  };
-{%- elif type.type_template == "enum" %}
-  enum {{ type.type_name  }} {
-{%- for prop in type.props %}
-    {{ prop.name }} = "{{ prop.name }}",
-{%- endfor %}
-  }
-{%- elif type.type_template == "const_as_enum" %}
-  const {{ type.type_name  }}: {
-{%- for prop in type.props %}
-    readonly {{ prop.name }}: "{{ prop.name }}",
-{%- endfor %}
-  };
-  type {{ type.type_name  }} = keyof typeof {{ type.type_name  }};
-{%- elif type.type_template == "union" %}
-  type {{ type.type_name  }} = 
-{%- for prop in type.props %}
-    '{{ prop.prop_type }}'{%- if not loop.last %} | {%- endif %}
-{%- endfor %};
-{%- endif %}
-{%- else %}
-  <!-- 默认模板 -->
-{%- if type.desc %}
-  /** {{ type.desc }} */
-{%- endif %}
-  interface {{ type.type_name  }} {
-{%- for prop in type.props %}
-{%- if prop.desc %}
-    /** {{ prop.desc }} */
-{%- endif %}
-    {{ prop.name }}: {{ prop.prop_type }};
-{%- endfor %}
-  }
-{%- endif %}
-{%- endfor %}
+  {%- for type in list %}
+      {%- if type.desc %}
+        /** {{ type.desc }} */
+      {%- endif %}
+    {#- 第一步：判断是否为枚举类型 -#}
+    {%- if type.is_enum %}
+      {#- 枚举类型只处理字符串和数字类型 -#}
+      {%- if type.type_kind == "string" or type.type_kind == "number" %}
+        {%- if type.enum_type_template == "enum" %}
+          enum {{ type.type_name }} {
+            {%- for prop in type.props %}
+              {%- if prop.name %}
+                {{ prop.name }} = {% if type.type_kind == "string" %}"{{ prop.prop_type }}"{% else %}{{ prop.prop_type }}{% endif %},
+              {%- else %}
+                VALUE_{{ loop.index }} = {% if type.type_kind == "string" %}"{{ prop.prop_type }}"{% else %}{{ prop.prop_type }}{% endif %},
+              {%- endif %}
+            {%- endfor %}
+          }
+        {%- elif type.enum_type_template == "const_as_enum" %}
+          const {{ type.type_name }}: {
+            {%- for prop in type.props %}
+              {%- if prop.name %}
+                readonly {{ prop.name }}: {% if type.type_kind == "string" %}"{{ prop.prop_type }}"{% else %}{{ prop.prop_type }}{% endif %},
+              {%- else %}
+                readonly VALUE_{{ loop.index }}: {% if type.type_kind == "string" %}"{{ prop.prop_type }}"{% else %}{{ prop.prop_type }}{% endif %},
+              {%- endif %}
+            {%- endfor %}
+          };
+          type {{ type.type_name }} = keyof typeof {{ type.type_name }};
+        {%- elif type.enum_type_template == "union" %}
+          type {{ type.type_name }} = 
+            {%- for prop in type.props %}
+              {% if type.type_kind == "string" %}"{{ prop.prop_type }}"{% else %}{{ prop.prop_type }}{% endif %}{%- if not loop.last %} | {%- endif %}
+            {%- endfor %};
+        {%- endif %}
+      {%- endif %}
+    {#- 第二步：判断基本数据类型 -#}
+    {%- elif type.type_kind == "object" %}
+      {#- 对象类型根据object_type_template渲染 -#}
+      {%- if type.object_type_template == "interface" %}
+        interface {{ type.type_name }} {
+          {%- for prop in type.props %}
+            {%- if prop.desc %}
+              /** {{ prop.desc }} */
+            {%- endif %}
+            {%- if prop.name %}
+              {%- if prop.required %}
+                {{ prop.name }}: {{ prop.prop_type }};
+              {%- else %}
+                {{ prop.name }}?: {{ prop.prop_type }};
+              {%- endif %}
+            {%- endif %}
+          {%- endfor %}
+        }
+      {%- elif type.object_type_template == "type" %}
+        type {{ type.type_name }} = {
+          {%- for prop in type.props %}
+            {%- if prop.desc %}
+              /** {{ prop.desc }} */
+            {%- endif %}
+            {%- if prop.name %}
+              '{{ prop.name }}': {{ prop.prop_type }};
+            {%- endif %}
+          {%- endfor %}
+        };
+      {%- elif type.object_type_template == "enum" %}
+        enum {{ type.type_name }} {
+          {%- for prop in type.props %}
+            {%- if prop.name %}
+              {{ prop.name }} = "{{ prop.name }}",
+            {%- endif %}
+          {%- endfor %}
+        }
+      {%- endif %}
+    {#- 基本数据类型使用type关键字 -#}
+    {%- else %}
+      type {{ type.type_name }} = 
+        {%- if type.type_kind == "string" %}"{{ type.type_name }}"{% elif type.type_kind == "number" %}{{ type.type_name | length }}{% elif type.type_kind == "boolean" %}true{% else %}{{ type.type_kind }}{% endif %};
+    {%- endif %}
+  {%- endfor %}
 }
