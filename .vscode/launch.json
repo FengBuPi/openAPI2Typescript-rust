@@ -1,0 +1,71 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Rust App",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=openAPI2Typescript-rust"
+        ],
+        "filter": {
+          "name": "openAPI2Typescript-rust",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "sourceLanguages": [
+        "rust"
+      ]
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Rust App (Release)",
+      "cargo": {
+        "args": [
+          "build",
+          "--release",
+          "--bin=openAPI2Typescript-rust"
+        ],
+        "filter": {
+          "name": "openAPI2Typescript-rust",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "sourceLanguages": [
+        "rust"
+      ]
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug with Arguments",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=openAPI2Typescript-rust"
+        ],
+        "filter": {
+          "name": "openAPI2Typescript-rust",
+          "kind": "bin"
+        }
+      },
+      "args": [
+        "--help"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "sourceLanguages": [
+        "rust"
+      ]
+    }
+  ]
+}
