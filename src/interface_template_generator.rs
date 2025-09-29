@@ -1,99 +1,87 @@
 use serde::{Deserialize, Serialize};
 use tera::{Context, Tera};
 
-/// TypeScript数据类型枚举
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum TypeScriptBasicType {
-    /// 字符串类型
-    #[serde(rename = "string")]
-    String,
-    /// 数字类型
-    #[serde(rename = "number")]
-    Number,
-    /// 布尔类型
-    #[serde(rename = "boolean")]
-    Boolean,
-    /// 任意类型
-    #[serde(rename = "any")]
-    Any,
-    /// 空类型
-    #[serde(rename = "null")]
-    Null,
-    /// 未定义类型
-    #[serde(rename = "undefined")]
-    Undefined,
-    /// 对象类型
-    #[serde(rename = "object")]
-    Object,
-    /// 数组类型
-    #[serde(rename = "array")]
-    Array,
-    /// 未知类型
-    #[serde(rename = "unknown")]
-    Unknown,
-    /// 从不类型
-    #[serde(rename = "never")]
-    Never,
-    /// 空类型
-    #[serde(rename = "void")]
-    Void,
+/// 属性值 - 只用于对象类型
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Property {
+    pub name: String,
+    pub prop_type: String,
+    pub required: bool,
+    pub desc: Option<String>,
 }
 
+/// 枚举值 - 只用于枚举类型
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnumValue {
+    pub name: Option<String>,
+    pub value: String,
+    pub desc: Option<String>,
+}
+
+/// 对象类型的模板
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ObjectTypeTemplate {
     #[serde(rename = "interface")]
     Interface,
     #[serde(rename = "type")]
     Type,
-    #[serde(rename = "enum")]
-    Enum,
 }
 
+/// 枚举类型的模板
 #[derive(Serialize, Deserialize, Debug)]
 pub enum EnumTypeTemplate {
     #[serde(rename = "enum")]
     Enum,
-    /// 常量对象键类型提取模式
-    ///  const {{ type.type_name  }}: {
-    ///     readonly {{ prop.name }}: "{{ prop.name }}",
-    /// };
-    /// type {{ type.type_name  }} = keyof typeof {{ type.type_name  }};
     #[serde(rename = "const_as_enum")]
     ConstAsEnum,
-    /// 联合类型
     #[serde(rename = "union")]
     Union,
 }
 
-/// 属性值
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Property {
-    // 只有对象类型才有名字
-    pub name: Option<String>,
-    #[serde(rename = "prop_type")]
-    pub prop_type: String,
-    pub required: bool,
-    pub desc: Option<String>,
+/// 基础数据类型
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum BasicType {
+    #[serde(rename = "string")]
+    String,
+    #[serde(rename = "number")]
+    Number,
+    #[serde(rename = "boolean")]
+    Boolean,
+    #[serde(rename = "any")]
+    Any,
 }
 
-// 类型定义
+/// 类型定义 - 使用枚举来实现专一性设计
+/// 每种类型只包含它需要的字段，不会有冗余
 #[derive(Serialize, Deserialize, Debug)]
-pub struct TypeDefinition {
-    /// 类型名称
-    pub type_name: String,
-    /// 数据类型
-    pub type_kind: TypeScriptBasicType,
-    /// 对象类型
-    /// 如果长度为空，则表示该类型是简单类型，否则表示该类型是对象类型
-    pub props: Vec<Property>,
-    /// 对象类型的模板
-    pub object_type_template: ObjectTypeTemplate,
-    /// 是否是枚举
-    pub is_enum: bool,
-    /// 枚举类型的模版
-    pub enum_type_template: EnumTypeTemplate,
-    /// 注释
-    pub desc: Option<String>,
+#[serde(tag = "type_kind")]
+pub enum TypeDefinition {
+    /// 对象类型定义
+    #[serde(rename = "object")]
+    Object {
+        type_name: String,
+        desc: Option<String>,
+        props: Vec<Property>,                     // 只有对象类型才有属性
+        object_type_template: ObjectTypeTemplate, // 只有对象类型才有对象模板
+    },
+
+    /// 枚举类型定义
+    #[serde(rename = "enum")]
+    Enum {
+        type_name: String,
+        desc: Option<String>,
+        basic_type: BasicType,  // 只有枚举类型才有基础类型（string/number）
+        values: Vec<EnumValue>, // 只有枚举类型才有枚举值
+        enum_type_template: EnumTypeTemplate, // 只有枚举类型才有枚举模板
+    },
+
+    /// 基本类型定义
+    #[serde(rename = "basic")]
+    Basic {
+        type_name: String,
+        desc: Option<String>,
+        basic_type: BasicType, // 只有基本类型才有基础类型
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -102,7 +90,6 @@ pub struct TemplateData {
     pub declare_type: String,
     pub equal_symbol: Option<String>,
     pub nullable: bool,
-    // 一个个类型
     pub list: Vec<TypeDefinition>,
 }
 
@@ -110,7 +97,7 @@ pub fn generate_typescript_types() -> Result<String, Box<dyn std::error::Error>>
     // 初始化 Tera 模板引擎
     let tera = Tera::new("templates/**/*.tera")?;
 
-    // 创建示例数据
+    // 创建示例数据 - 使用新的专一性设计
     let template_data = TemplateData {
         namespace: "MyAPI".to_string(),
         declare_type: "interface".to_string(),
@@ -118,28 +105,25 @@ pub fn generate_typescript_types() -> Result<String, Box<dyn std::error::Error>>
         equal_symbol: None,
         list: vec![
             // 1. 对象类型 - Interface
-            TypeDefinition {
+            TypeDefinition::Object {
                 type_name: "User".to_string(),
-                type_kind: TypeScriptBasicType::Object,
-                object_type_template: ObjectTypeTemplate::Interface,
-                is_enum: false,
-                enum_type_template: EnumTypeTemplate::Enum,
                 desc: Some("用户信息".to_string()),
+                object_type_template: ObjectTypeTemplate::Interface,
                 props: vec![
                     Property {
-                        name: Some("id".to_string()),
+                        name: "id".to_string(),
                         prop_type: "number".to_string(),
                         required: true,
                         desc: Some("用户唯一标识符".to_string()),
                     },
                     Property {
-                        name: Some("name".to_string()),
+                        name: "name".to_string(),
                         prop_type: "string".to_string(),
                         required: true,
                         desc: Some("用户姓名".to_string()),
                     },
                     Property {
-                        name: Some("email".to_string()),
+                        name: "email".to_string(),
                         prop_type: "string".to_string(),
                         required: false,
                         desc: Some("用户邮箱地址".to_string()),
@@ -147,22 +131,19 @@ pub fn generate_typescript_types() -> Result<String, Box<dyn std::error::Error>>
                 ],
             },
             // 2. 对象类型 - Type
-            TypeDefinition {
+            TypeDefinition::Object {
                 type_name: "Config".to_string(),
-                type_kind: TypeScriptBasicType::Object,
-                object_type_template: ObjectTypeTemplate::Type,
-                is_enum: false,
-                enum_type_template: EnumTypeTemplate::Enum,
                 desc: Some("配置对象".to_string()),
+                object_type_template: ObjectTypeTemplate::Type,
                 props: vec![
                     Property {
-                        name: Some("debug".to_string()),
+                        name: "debug".to_string(),
                         prop_type: "boolean".to_string(),
                         required: true,
                         desc: Some("调试模式".to_string()),
                     },
                     Property {
-                        name: Some("timeout".to_string()),
+                        name: "timeout".to_string(),
                         prop_type: "number".to_string(),
                         required: true,
                         desc: Some("超时时间".to_string()),
@@ -170,144 +151,113 @@ pub fn generate_typescript_types() -> Result<String, Box<dyn std::error::Error>>
                 ],
             },
             // 3. 枚举类型 - 字符串枚举
-            TypeDefinition {
+            TypeDefinition::Enum {
                 type_name: "Status".to_string(),
-                type_kind: TypeScriptBasicType::String,
-                object_type_template: ObjectTypeTemplate::Interface,
-                is_enum: true,
-                enum_type_template: EnumTypeTemplate::Enum,
                 desc: Some("状态枚举".to_string()),
-                props: vec![
-                    Property {
+                basic_type: BasicType::String,
+                enum_type_template: EnumTypeTemplate::Enum,
+                values: vec![
+                    EnumValue {
                         name: Some("PENDING".to_string()),
-                        prop_type: "pending".to_string(),
-                        required: true,
+                        value: "pending".to_string(),
                         desc: None,
                     },
-                    Property {
+                    EnumValue {
                         name: Some("SUCCESS".to_string()),
-                        prop_type: "success".to_string(),
-                        required: true,
+                        value: "success".to_string(),
                         desc: None,
                     },
-                    Property {
+                    EnumValue {
                         name: Some("FAILED".to_string()),
-                        prop_type: "failed".to_string(),
-                        required: true,
+                        value: "failed".to_string(),
                         desc: None,
                     },
                 ],
             },
             // 4. 枚举类型 - 数字枚举
-            TypeDefinition {
+            TypeDefinition::Enum {
                 type_name: "Priority".to_string(),
-                type_kind: TypeScriptBasicType::Number,
-                object_type_template: ObjectTypeTemplate::Interface,
-                is_enum: true,
-                enum_type_template: EnumTypeTemplate::Enum,
                 desc: Some("优先级枚举".to_string()),
-                props: vec![
-                    Property {
+                basic_type: BasicType::Number,
+                enum_type_template: EnumTypeTemplate::Enum,
+                values: vec![
+                    EnumValue {
                         name: Some("LOW".to_string()),
-                        prop_type: "1".to_string(),
-                        required: true,
+                        value: "1".to_string(),
                         desc: None,
                     },
-                    Property {
+                    EnumValue {
                         name: Some("MEDIUM".to_string()),
-                        prop_type: "2".to_string(),
-                        required: true,
+                        value: "2".to_string(),
                         desc: None,
                     },
-                    Property {
+                    EnumValue {
                         name: Some("HIGH".to_string()),
-                        prop_type: "3".to_string(),
-                        required: true,
+                        value: "3".to_string(),
                         desc: None,
                     },
                 ],
             },
             // 5. 枚举类型 - 常量对象键类型提取模式
-            TypeDefinition {
+            TypeDefinition::Enum {
                 type_name: "Theme".to_string(),
-                type_kind: TypeScriptBasicType::String,
-                object_type_template: ObjectTypeTemplate::Interface,
-                is_enum: true,
-                enum_type_template: EnumTypeTemplate::ConstAsEnum,
                 desc: Some("主题常量".to_string()),
-                props: vec![
-                    Property {
+                basic_type: BasicType::String,
+                enum_type_template: EnumTypeTemplate::ConstAsEnum,
+                values: vec![
+                    EnumValue {
                         name: Some("LIGHT".to_string()),
-                        prop_type: "light".to_string(),
-                        required: true,
+                        value: "light".to_string(),
                         desc: None,
                     },
-                    Property {
+                    EnumValue {
                         name: Some("DARK".to_string()),
-                        prop_type: "dark".to_string(),
-                        required: true,
+                        value: "dark".to_string(),
                         desc: None,
                     },
                 ],
             },
             // 6. 枚举类型 - 联合类型
-            TypeDefinition {
+            TypeDefinition::Enum {
                 type_name: "Language".to_string(),
-                type_kind: TypeScriptBasicType::String,
-                object_type_template: ObjectTypeTemplate::Type,
-                is_enum: true,
-                enum_type_template: EnumTypeTemplate::Union,
                 desc: Some("语言联合类型".to_string()),
-                props: vec![
-                    Property {
+                basic_type: BasicType::String,
+                enum_type_template: EnumTypeTemplate::Union,
+                values: vec![
+                    EnumValue {
                         name: None,
-                        prop_type: "zh-CN".to_string(),
-                        required: true,
+                        value: "zh-CN".to_string(),
                         desc: None,
                     },
-                    Property {
+                    EnumValue {
                         name: None,
-                        prop_type: "en-US".to_string(),
-                        required: true,
+                        value: "en-US".to_string(),
                         desc: None,
                     },
-                    Property {
+                    EnumValue {
                         name: None,
-                        prop_type: "ja-JP".to_string(),
-                        required: true,
+                        value: "ja-JP".to_string(),
                         desc: None,
                     },
                 ],
             },
             // 7. 基本数据类型 - 字符串
-            TypeDefinition {
+            TypeDefinition::Basic {
                 type_name: "ApiKey".to_string(),
-                type_kind: TypeScriptBasicType::String,
-                object_type_template: ObjectTypeTemplate::Type,
-                is_enum: false,
-                enum_type_template: EnumTypeTemplate::Enum,
                 desc: Some("API密钥类型".to_string()),
-                props: vec![],
+                basic_type: BasicType::String,
             },
             // 8. 基本数据类型 - 数字
-            TypeDefinition {
+            TypeDefinition::Basic {
                 type_name: "UserId".to_string(),
-                type_kind: TypeScriptBasicType::Number,
-                object_type_template: ObjectTypeTemplate::Type,
-                is_enum: false,
-                enum_type_template: EnumTypeTemplate::Enum,
                 desc: Some("用户ID类型".to_string()),
-                props: vec![],
+                basic_type: BasicType::Number,
             },
             // 9. 基本数据类型 - 布尔
-            TypeDefinition {
+            TypeDefinition::Basic {
                 type_name: "IsActive".to_string(),
-                type_kind: TypeScriptBasicType::Boolean,
-                object_type_template: ObjectTypeTemplate::Type,
-                is_enum: false,
-                enum_type_template: EnumTypeTemplate::Enum,
                 desc: Some("激活状态类型".to_string()),
-                props: vec![],
+                basic_type: BasicType::Boolean,
             },
         ],
     };
@@ -315,9 +265,6 @@ pub fn generate_typescript_types() -> Result<String, Box<dyn std::error::Error>>
     // 创建上下文并添加数据
     let mut context = Context::new();
     context.insert("namespace", &template_data.namespace);
-    context.insert("declareType", &template_data.declare_type);
-    context.insert("equalSymbol", &template_data.equal_symbol);
-    context.insert("nullable", &template_data.nullable);
     context.insert("list", &template_data.list);
 
     // 渲染模板

@@ -1,5 +1,5 @@
 use crate::interface_template_generator::{
-    Property, TypeDefinition, TypeScriptBasicType, /* TypeTemplate, */
+    BasicType, EnumTypeTemplate, EnumValue, ObjectTypeTemplate, Property, TypeDefinition,
 };
 use heck::ToPascalCase;
 use openapiv3::{OpenAPI, ReferenceOr, Schema};
@@ -120,9 +120,8 @@ fn convert_schema_to_type_definition(
     schema_ref: &ReferenceOr<Schema>,
 ) -> Result<TypeDefinition, Box<dyn std::error::Error>> {
     let mut props = Vec::new();
-    // let mut type_template = TypeTemplate::Interface;
-    let mut type_value = TypeScriptBasicType::Any; // 默认类型
-                                                   // 类型名称 - 提取并转换为 PascalCase
+    let mut type_value = BasicType::Any; // 默认类型
+                                         // 类型名称 - 提取并转换为 PascalCase
     let type_name = schema_name.split('.').last().unwrap().to_pascal_case();
 
     match schema_ref {
@@ -134,7 +133,6 @@ fn convert_schema_to_type_definition(
                     match type_kind {
                         openapiv3::Type::Object(object_type) => {
                             // 处理对象类型
-                            type_value = TypeScriptBasicType::Object;
                             for (prop_name, prop_schema_ref) in &object_type.properties {
                                 // 判断一下是否满足ts类型对于属性名称的规范，不满足就跳过不渲染对应的模版
                                 if prop_name.is_empty()
@@ -145,96 +143,106 @@ fn convert_schema_to_type_definition(
                                 let property = convert_property(prop_name, prop_schema_ref)?;
                                 props.push(property);
                             }
+                            return Ok(TypeDefinition::Object {
+                                type_name,
+                                desc: None,
+                                props,
+                                object_type_template: ObjectTypeTemplate::Interface,
+                            });
                         }
                         openapiv3::Type::String(string_type) => {
-                            type_value = TypeScriptBasicType::String;
+                            type_value = BasicType::String;
                             // 检查是否是枚举类型
                             if !string_type.enumeration.is_empty() {
-                                // type_template = TypeTemplate::Union;
-                                for (_index, enum_value) in
+                                let mut values = Vec::new();
+                                for (index, enum_value) in
                                     string_type.enumeration.iter().enumerate()
                                 {
-                                    let property = Property {
+                                    values.push(EnumValue {
                                         name: None,
-                                        prop_type: enum_value.clone().unwrap(),
-                                        required: true,
+                                        value: enum_value.clone().unwrap(),
                                         desc: None,
-                                    };
-                                    props.push(property);
+                                    });
                                 }
-                            } else {
-                                // type_template = TypeTemplate::Type;
-                                let property = Property {
-                                    name: None,
-                                    prop_type: "string".to_string(),
-                                    required: true,
+                                return Ok(TypeDefinition::Enum {
+                                    type_name,
                                     desc: None,
-                                };
-                                props.push(property);
+                                    basic_type: type_value,
+                                    values,
+                                    enum_type_template: EnumTypeTemplate::Enum,
+                                });
+                            } else {
+                                return Ok(TypeDefinition::Basic {
+                                    type_name,
+                                    desc: None,
+                                    basic_type: type_value,
+                                });
                             }
                         }
-                        openapiv3::Type::Integer(nteger_type) => {
-                            type_value = TypeScriptBasicType::Number;
-                            if !nteger_type.enumeration.is_empty() {
-                                // type_template = TypeTemplate::Union;
+                        openapiv3::Type::Integer(integer_type) => {
+                            type_value = BasicType::Number;
+                            if !integer_type.enumeration.is_empty() {
+                                let mut values = Vec::new();
                                 for (_index, enum_value) in
-                                    nteger_type.enumeration.iter().enumerate()
+                                    integer_type.enumeration.iter().enumerate()
                                 {
-                                    let property = Property {
+                                    values.push(EnumValue {
                                         name: None,
-                                        prop_type: enum_value.unwrap().to_string(),
-                                        required: true,
+                                        value: enum_value.unwrap().to_string(),
                                         desc: None,
-                                    };
-                                    props.push(property);
+                                    });
                                 }
-                            } else {
-                                let property = Property {
-                                    name: None,
-                                    prop_type: "number".to_string(),
-                                    required: true,
+                                return Ok(TypeDefinition::Enum {
+                                    type_name,
                                     desc: None,
-                                };
-                                props.push(property);
+                                    basic_type: type_value,
+                                    values,
+                                    enum_type_template: EnumTypeTemplate::Enum,
+                                });
+                            } else {
+                                return Ok(TypeDefinition::Basic {
+                                    type_name,
+                                    desc: None,
+                                    basic_type: type_value,
+                                });
                             }
                         }
                         openapiv3::Type::Number(number_type) => {
-                            type_value = TypeScriptBasicType::Number;
+                            type_value = BasicType::Number;
                             if !number_type.enumeration.is_empty() {
-                                // type_template = TypeTemplate::Union;
+                                let mut values = Vec::new();
                                 for (_index, enum_value) in
                                     number_type.enumeration.iter().enumerate()
                                 {
-                                    let property = Property {
+                                    values.push(EnumValue {
                                         name: None,
-                                        prop_type: enum_value.unwrap().to_string(),
-                                        required: true,
+                                        value: enum_value.unwrap().to_string(),
                                         desc: None,
-                                    };
-                                    props.push(property);
+                                    });
                                 }
-                            } else {
-                                let property = Property {
-                                    name: None,
-                                    prop_type: "number".to_string(),
-                                    required: true,
+                                return Ok(TypeDefinition::Enum {
+                                    type_name,
                                     desc: None,
-                                };
-                                props.push(property);
+                                    basic_type: type_value,
+                                    values,
+                                    enum_type_template: EnumTypeTemplate::Enum,
+                                });
+                            } else {
+                                return Ok(TypeDefinition::Basic {
+                                    type_name,
+                                    desc: None,
+                                    basic_type: type_value,
+                                });
                             }
                         }
                         openapiv3::Type::Boolean(_) => {
-                            type_value = TypeScriptBasicType::Boolean;
-                            let property = Property {
-                                name: None,
-                                prop_type: "boolean".to_string(),
-                                required: true,
+                            return Ok(TypeDefinition::Basic {
+                                type_name,
                                 desc: None,
-                            };
-                            props.push(property);
+                                basic_type: BasicType::Boolean,
+                            });
                         }
                         openapiv3::Type::Array(array_type) => {
-                            type_value = TypeScriptBasicType::Array;
                             if let Some(items) = &array_type.items {
                                 match items {
                                     ReferenceOr::Item(schema) => {
@@ -246,7 +254,7 @@ fn convert_schema_to_type_definition(
                                     }
                                     ReferenceOr::Reference { reference } => {
                                         let property = Property {
-                                            name: None,
+                                            name: "items".to_string(),
                                             prop_type: format!(
                                                 "{}[]",
                                                 extract_type_name_from_ref(reference.as_str())
@@ -259,19 +267,24 @@ fn convert_schema_to_type_definition(
                                 }
                             } else {
                                 let property = Property {
-                                    name: None,
+                                    name: "items".to_string(),
                                     prop_type: "any[]".to_string(),
                                     required: true,
                                     desc: None,
                                 };
                                 props.push(property);
                             }
+                            return Ok(TypeDefinition::Object {
+                                type_name,
+                                desc: None,
+                                props,
+                                object_type_template: ObjectTypeTemplate::Interface,
+                            });
                         }
                     }
                 }
                 openapiv3::SchemaKind::Any(any_schema) => {
                     // 处理 AnySchema
-                    type_value = TypeScriptBasicType::Any;
                     for (prop_name, prop_schema_ref) in &any_schema.properties {
                         if prop_name.is_empty() || !is_valid_typescript_identifier(prop_name) {
                             continue;
@@ -279,44 +292,33 @@ fn convert_schema_to_type_definition(
                         let property = convert_property(prop_name, prop_schema_ref)?;
                         props.push(property);
                     }
+                    return Ok(TypeDefinition::Object {
+                        type_name,
+                        desc: None,
+                        props,
+                        object_type_template: ObjectTypeTemplate::Interface,
+                    });
                 }
                 _ => {
                     // 处理其他类型
-                    type_value = TypeScriptBasicType::Any;
-                    let property = Property {
-                        name: None,
-                        prop_type: "any".to_string(),
-                        required: true,
+                    return Ok(TypeDefinition::Basic {
+                        type_name,
                         desc: None,
-                    };
-                    props.push(property);
+                        basic_type: BasicType::Any,
+                    });
                 }
             }
         }
         // 引用定义
         ReferenceOr::Reference { reference } => {
             // 处理引用类型
-            type_value = TypeScriptBasicType::Any; // 引用类型默认为Any
-            let property = Property {
-                name: None,
-                prop_type: extract_type_name_from_ref(reference),
-                required: true,
+            return Ok(TypeDefinition::Basic {
+                type_name,
                 desc: None,
-            };
-            props.push(property);
+                basic_type: BasicType::Any,
+            });
         }
     }
-
-    Ok(TypeDefinition {
-        type_name,
-        type_kind: type_value,
-        props,
-        // type_template,
-        object_type_template: crate::interface_template_generator::ObjectTypeTemplate::Interface,
-        is_enum: false,
-        enum_type_template: crate::interface_template_generator::EnumTypeTemplate::Enum,
-        desc: None,
-    })
 }
 
 /// 处理 schema.[类型名称].properties.[属性名称:prop_name]的值:prop_schema_ref
@@ -376,7 +378,7 @@ fn convert_property(
     };
 
     Ok(Property {
-        name: Some(prop_name.to_string()),
+        name: prop_name.to_string(),
         prop_type,
         required: true, // 简化处理，假设所有属性都是必需的
         desc: None,
