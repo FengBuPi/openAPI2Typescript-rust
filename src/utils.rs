@@ -684,7 +684,7 @@ fn convert_object_type_to_typescript(
 /// - Number/Integer → "number"
 /// - Boolean → "boolean"
 /// - Array → "ElementType[]"
-/// - Object → "Record<string, any>"
+/// - Object → "Record<string, 具体类型或者any>"
 /// - Reference → 提取的类型名称
 /// - 其他 → "any"
 fn get_typescript_type_recursive(
@@ -708,7 +708,6 @@ fn get_typescript_type_recursive(
                                 Ok("any[]".to_string())
                             }
                         }
-                        // 对象类型处理
                         openapiv3::Type::Object(object_type) => {
                             convert_object_type_to_typescript(object_type)
                         }
@@ -742,10 +741,7 @@ fn convert_property(
     prop_name: &str,
     prop_schema_ref: &ReferenceOr<Box<Schema>>,
 ) -> Result<Property, Box<dyn std::error::Error>> {
-    if prop_name == "status_count" {
-        println!("prop_name: {}", prop_name);
-    }
-    // 使用递归函数获取 TypeScript 类型
+    // 使用递归函数获取最终的 TypeScript 非对象类型
     let prop_type = get_typescript_type_recursive(prop_schema_ref)?;
 
     // 提取 description
