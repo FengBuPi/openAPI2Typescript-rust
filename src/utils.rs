@@ -286,7 +286,7 @@ fn convert_schema_to_type_definition(
     // 生成类型名称（PascalCase 格式）
     let type_name = schema_name.split('.').last().unwrap().to_pascal_case();
 
-    match schema_ref {
+    let type_definition = match schema_ref {
         // 处理内联定义的 Schema
         ReferenceOr::Item(schema) => {
             match &schema.schema_kind {
@@ -312,7 +312,9 @@ fn convert_schema_to_type_definition(
             desc: None,
             basic_type: BasicType::Any,
         }),
-    }
+    };
+
+    type_definition
 }
 
 // ============================================================================
@@ -378,7 +380,9 @@ fn convert_object_type(
             continue;
         }
 
-        let property = convert_property(prop_name, prop_schema_ref)?;
+        let is_required = object_type.required.contains(prop_name);
+
+        let property = convert_property(prop_name, prop_schema_ref, is_required)?;
         props.push(property);
     }
 
@@ -476,8 +480,8 @@ fn convert_array_type(
     if let Some(items) = &array_type.items {
         match items {
             ReferenceOr::Item(schema) => {
-                // 内联 schema，递归转换
-                let property = convert_property(type_name, &ReferenceOr::Item(schema.clone()))?;
+                let property =
+                    convert_property(type_name, &ReferenceOr::Item(schema.clone()), false)?;
                 props.push(property);
             }
             ReferenceOr::Reference { reference } => {
@@ -522,7 +526,7 @@ fn convert_any_schema(
         if prop_name.is_empty() || !is_valid_typescript_identifier(prop_name) {
             continue;
         }
-        let property = convert_property(prop_name, prop_schema_ref)?;
+        let property = convert_property(prop_name, prop_schema_ref, false)?;
         props.push(property);
     }
 
@@ -720,7 +724,7 @@ fn get_typescript_type_recursive(
     }
 }
 
-/// 转换属性定义
+/// 生成属性定义
 ///
 /// # 功能说明
 /// 将 OpenAPI Schema 属性转换为 TypeScript 属性定义。
@@ -735,12 +739,13 @@ fn get_typescript_type_recursive(
 /// * `Err(Box<dyn std::error::Error>)` - 转换过程中的错误
 ///
 /// # 注意事项
-/// - 目前简化处理，假设所有属性都是必需的
 /// - 属性描述从 Schema 中提取
 fn convert_property(
     prop_name: &str,
     prop_schema_ref: &ReferenceOr<Box<Schema>>,
+    is_required: bool,
 ) -> Result<Property, Box<dyn std::error::Error>> {
+    let name = prop_name.to_string();
     // 使用递归函数获取最终的 TypeScript 非对象类型
     let prop_type = get_typescript_type_recursive(prop_schema_ref)?;
 
@@ -751,9 +756,9 @@ fn convert_property(
     };
 
     Ok(Property {
-        name: prop_name.to_string(),
+        name,
         prop_type,
-        required: true, // 简化处理，假设所有属性都是必需的
+        required: is_required,
         desc,
     })
 }
