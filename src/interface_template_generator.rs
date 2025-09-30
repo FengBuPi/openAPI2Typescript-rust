@@ -4,16 +4,17 @@ use tera::{Context, Tera};
 /// 属性值 - 只用于对象类型
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Property {
-    pub name: String,
-    pub prop_type: String,
-    pub required: bool,
+    pub key: String,
+    pub value: String,
+    pub is_required: bool,
     pub desc: Option<String>,
 }
 
 /// 枚举值 - 只用于枚举类型
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EnumValue {
-    pub name: Option<String>,
+    /// 使用联合类型模版时，会忽略key
+    pub key: Option<String>,
     pub value: String,
     pub desc: Option<String>,
 }
@@ -32,6 +33,7 @@ pub enum ObjectTypeTemplate {
 pub enum EnumTypeTemplate {
     #[serde(rename = "enum")]
     Enum,
+    /// 常量对象键类型提取模式(相比enum，打包后压缩率高)
     #[serde(rename = "const_as_enum")]
     ConstAsEnum,
     #[serde(rename = "union")]

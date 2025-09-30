@@ -19,10 +19,10 @@ declare namespace {{ namespace }} {
             {%- if prop.desc %}
               /** {{ prop.desc }} */
             {%- endif %}
-            {%- if prop.required %}
-              {{ prop.name }}: {{ prop.prop_type }};
+            {%- if prop.is_required %}
+              {{ prop.key }}: {{ prop.value }};
             {%- else %}
-              {{ prop.name }}?: {{ prop.prop_type }};
+              {{ prop.key }}?: {{ prop.value }};
             {%- endif %}
           {%- endfor %}
         }
@@ -32,7 +32,7 @@ declare namespace {{ namespace }} {
             {%- if prop.desc %}
               /** {{ prop.desc }} */
             {%- endif %}
-            '{{ prop.name }}': {{ prop.prop_type }};
+            '{{ prop.key }}': {{ prop.value }};
           {%- endfor %}
         };
       {%- endif %}
@@ -42,8 +42,8 @@ declare namespace {{ namespace }} {
       {%- if type.enum_type_template == "enum" %}
         enum {{ type.type_name }} {
           {%- for value in type.values %}
-            {%- if value.name %}
-              {{ value.name }} = {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %},
+            {%- if value.key %}
+              {{ value.key }} = {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %},
             {%- else %}
               VALUE_{{ loop.index }} = {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %},
             {%- endif %}
@@ -52,8 +52,8 @@ declare namespace {{ namespace }} {
       {%- elif type.enum_type_template == "const_as_enum" %}
         const {{ type.type_name }}: {
           {%- for value in type.values %}
-            {%- if value.name %}
-              readonly {{ value.name }}: {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %},
+            {%- if value.key %}
+              readonly {{ value.key }}: {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %},
             {%- else %}
               readonly VALUE_{{ loop.index }}: {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %},
             {%- endif %}

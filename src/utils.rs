@@ -487,9 +487,9 @@ fn convert_array_type(
             ReferenceOr::Reference { reference } => {
                 // 引用类型
                 let property = Property {
-                    name: "items".to_string(),
-                    prop_type: format!("{}[]", extract_type_name_from_ref(reference.as_str())),
-                    required: true,
+                    key: "items".to_string(),
+                    value: format!("{}[]", extract_type_name_from_ref(reference.as_str())),
+                    is_required: true,
                     desc: None,
                 };
                 props.push(property);
@@ -498,9 +498,9 @@ fn convert_array_type(
     } else {
         // 没有指定元素类型，默认为 any[]
         let property = Property {
-            name: "items".to_string(),
-            prop_type: "any[]".to_string(),
-            required: true,
+            key: "items".to_string(),
+            value: "any[]".to_string(),
+            is_required: true,
             desc: None,
         };
         props.push(property);
@@ -553,7 +553,7 @@ fn convert_enum_values(
             // todo: 以后的新功能：当用户设置生成enum模式时使用这种方式
             // let enum_name = generate_enum_name(value);
             values.push(EnumValue {
-                name: None,
+                key: None,
                 value: value.clone(),
                 desc: None,
             });
@@ -575,7 +575,7 @@ fn convert_integer_enum_values(
             // todo: 以后的新功能：当用户设置生成enum模式时使用这种方式
             // let enum_name = generate_enum_name(&value_str);
             values.push(EnumValue {
-                name: None,
+                key: None,
                 value: value_str,
                 desc: None,
             });
@@ -597,7 +597,7 @@ fn convert_number_enum_values(
             // todo: 以后的新功能：当用户设置生成enum模式时使用这种方式，把enum_name给下面的name
             // let enum_name = generate_enum_name(&value_str);
             values.push(EnumValue {
-                name: None,
+                key: None,
                 value: value_str,
                 desc: None,
             });
@@ -756,9 +756,9 @@ fn convert_property(
     };
 
     Ok(Property {
-        name,
-        prop_type,
-        required: is_required,
+        key: name,
+        value: prop_type,
+        is_required,
         desc,
     })
 }
