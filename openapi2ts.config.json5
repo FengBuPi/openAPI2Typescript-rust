@@ -1,0 +1,37 @@
+{
+  "schemaPath": "http://localhost:8080/openapi.json",
+  "declareType": "interface"
+  // requestLibPath: "import request from './request';",
+  // schemaPath: './swagger.json',
+  // serversPath: './servers',
+  // hook: {
+  //   afterOpenApiDataInited: (openApiData: any) => {
+  //     console.log('afterOpenApiDataInited', openApiData);
+  //     return openApiData;
+  //   },
+  //   customFunctionName: (APIDataType: any) => {
+  //     console.log('customFunctionName', APIDataType);
+  //     return APIDataType;
+  //   },
+  //   customTypeName: (APIDataType: any) => {
+  //     console.log('customTypeName', APIDataType);
+  //     return APIDataType;
+  //   },
+  //   customClassName: (tagName: any) => {
+  //     console.log('customClassName', tagName);
+  //     return tagName;
+  //   },
+  //   customType: (typeName: any) => {
+  //     console.log('customTypeImports', typeName);
+  //     return typeName;
+  //   },
+  //   customFileNames: (operationObject: any, apiPath: any, _apiMethod: any) => {
+  //     console.log('customFileNames', operationObject, apiPath, _apiMethod);
+  //     return operationObject['x-swagger-router-controller']
+  //       ? [operationObject['x-swagger-router-controller']]
+  //       : operationObject.tags || [operationObject.operationId] || [
+  //         apiPath.replace('/', '').split('/')[1],
+  //       ];
+  //   }
+  // }
+}
