@@ -240,7 +240,8 @@ fn extract_type_name_from_ref(ref_path: &str) -> String {
 /// # 处理流程
 /// 1. 遍历 OpenAPI 规范中的 `components.schemas`
 /// 2. 将每个 schema 转换为对应的 TypeDefinition
-/// 3. 收集所有转换结果并返回
+/// 3. 按照类型名称排序, 防止生成顺序不一致导致的git diff问题
+/// 4. 收集所有转换结果并返回
 pub fn openapi_to_template_data_list(
     openapi_spec: &OpenAPI,
 ) -> Result<Vec<TypeDefinition>, Box<dyn std::error::Error>> {
@@ -254,7 +255,8 @@ pub fn openapi_to_template_data_list(
             type_definitions.push(type_definition);
         }
     }
-
+    // 按照类型名称排序, 防止生成顺序不一致导致的git diff问题
+    type_definitions.sort_by(|a, b| a.type_name().cmp(b.type_name()));
     Ok(type_definitions)
 }
 

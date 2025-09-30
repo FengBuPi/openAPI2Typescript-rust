@@ -86,6 +86,17 @@ pub enum TypeDefinition {
     },
 }
 
+impl TypeDefinition {
+    /// 获取类型名称
+    pub fn type_name(&self) -> &str {
+        match self {
+            TypeDefinition::Object { type_name, .. } => type_name,
+            TypeDefinition::Enum { type_name, .. } => type_name,
+            TypeDefinition::Basic { type_name, .. } => type_name,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TemplateData {
     pub namespace: String,
