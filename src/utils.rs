@@ -650,11 +650,11 @@ fn convert_object_type_to_typescript(
                 openapiv3::AdditionalProperties::Schema(schema_ref) => {
                     // schema_ref 是 Box<ReferenceOr<Schema>>，需要转换为 ReferenceOr<Box<Schema>>
                     let value_type = match schema_ref.as_ref() {
-                        ReferenceOr::Item(schema) => get_typescript_type_recursive(
+                        ReferenceOr::Item(schema) => get_typescript_type_string(
                             &ReferenceOr::Item(Box::new(schema.clone())),
                         )?,
                         ReferenceOr::Reference { reference } => {
-                            get_typescript_type_recursive(&ReferenceOr::Reference {
+                            get_typescript_type_string(&ReferenceOr::Reference {
                                 reference: reference.clone(),
                             })?
                         }
@@ -672,7 +672,7 @@ fn convert_object_type_to_typescript(
 // 属性转换函数
 // ============================================================================
 
-/// 递归获取 TypeScript 类型，支持嵌套数组
+/// 递归处理 TypeScript 类型，支持嵌套数组、对象、引用
 ///
 /// # 功能说明
 /// 递归处理 OpenAPI Schema 引用，将其转换为对应的 TypeScript 类型字符串。
@@ -693,7 +693,7 @@ fn convert_object_type_to_typescript(
 /// - Object → "Record<string, 具体类型或者any>"
 /// - Reference → 提取的类型名称
 /// - 其他 → "any"
-fn get_typescript_type_recursive(
+fn get_typescript_type_string(
     schema_ref: &ReferenceOr<Box<Schema>>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     match schema_ref {
@@ -708,7 +708,7 @@ fn get_typescript_type_recursive(
                         openapiv3::Type::Array(array_type) => {
                             // 递归处理数组元素类型
                             if let Some(items) = &array_type.items {
-                                let item_type = get_typescript_type_recursive(items)?;
+                                let item_type = get_typescript_type_string(items)?;
                                 Ok(format!("{}[]", item_type))
                             } else {
                                 Ok("any[]".to_string())
@@ -718,6 +718,48 @@ fn get_typescript_type_recursive(
                             convert_object_type_to_typescript(object_type)
                         }
                     }
+                }
+                openapiv3::SchemaKind::AllOf { all_of } => {
+                    let types = all_of
+                        .iter()
+                        .map(|item| match item {
+                            ReferenceOr::Item(schema_ref) => get_typescript_type_string(
+                                &ReferenceOr::Item(Box::new(schema_ref.clone())),
+                            ),
+                            ReferenceOr::Reference { reference } => {
+                                Ok(extract_type_name_from_ref(reference.as_str()))
+                            }
+                        })
+                        .collect::<Result<Vec<String>, _>>()?;
+                    Ok(types.join(" & "))
+                }
+                openapiv3::SchemaKind::AnyOf { any_of } => {
+                    let types = any_of
+                        .iter()
+                        .map(|item| match item.clone() {
+                            ReferenceOr::Item(schema_ref) => get_typescript_type_string(
+                                &ReferenceOr::Item(Box::new(schema_ref.clone())),
+                            ),
+                            ReferenceOr::Reference { reference } => {
+                                Ok(extract_type_name_from_ref(reference.as_str()))
+                            }
+                        })
+                        .collect::<Result<Vec<String>, _>>()?;
+                    Ok(types.join(" & "))
+                }
+                openapiv3::SchemaKind::OneOf { one_of } => {
+                    let types = one_of
+                        .iter()
+                        .map(|item| match item.clone() {
+                            ReferenceOr::Item(schema_ref) => get_typescript_type_string(
+                                &ReferenceOr::Item(Box::new(schema_ref.clone())),
+                            ),
+                            ReferenceOr::Reference { reference } => {
+                                Ok(extract_type_name_from_ref(reference.as_str()))
+                            }
+                        })
+                        .collect::<Result<Vec<String>, _>>()?;
+                    Ok(types.join(" | "))
                 }
                 _ => Ok("any".to_string()),
             }
@@ -747,9 +789,9 @@ fn convert_property(
     prop_schema_ref: &ReferenceOr<Box<Schema>>,
     is_required: bool,
 ) -> Result<Property, Box<dyn std::error::Error>> {
-    let name = prop_name.to_string();
+    let key = prop_name.to_string();
     // 使用递归函数获取最终的 TypeScript 非对象类型
-    let prop_type = get_typescript_type_recursive(prop_schema_ref)?;
+    let value = get_typescript_type_string(prop_schema_ref)?;
 
     // 提取 description
     let desc = match prop_schema_ref {
@@ -758,8 +800,8 @@ fn convert_property(
     };
 
     Ok(Property {
-        key: name,
-        value: prop_type,
+        key,
+        value,
         is_required,
         desc,
     })
