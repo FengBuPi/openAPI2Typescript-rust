@@ -1,6 +1,6 @@
 mod config;
-mod get_template_data;
 mod interface_template_generator;
+mod schema_to_interface_template_data;
 
 use config::Config;
 use interface_template_generator::TemplateData;
@@ -13,12 +13,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config: Config = json5::from_str(&config_content)?;
     println!("配置加载成功: {:?}", config);
 
-    // 2. 根据配置获取 OpenAPI 规范（支持网络请求和本地文件）
+    // 2. 根据配置获取 OpenAPI 规范 结构体（支持网络请求和本地文件）
     let openapi_spec: OpenAPI = config::get_openapi_spec(&config).await?;
     println!("当前 OpenAPI 版本: {:?}", openapi_spec.openapi);
 
     // 3. 将 OpenAPI 规范转换为模板数据列表
-    let template_data_list = get_template_data::openapi_to_template_data_list(&openapi_spec)?;
+    let template_data_list =
+        schema_to_interface_template_data::openapi_to_template_data_list(&openapi_spec)?;
 
     // 4. 构建完整的模板数据
     let template_data = TemplateData {
