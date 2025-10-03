@@ -1,9 +1,9 @@
 mod config;
-mod interface_template_generator;
+mod generator_template;
 mod schema_to_interface_template_data;
 
 use config::Config;
-use interface_template_generator::TemplateData;
+use generator_template::interface_template_generator::TemplateData;
 use openapiv3::OpenAPI;
 
 #[tokio::main]
@@ -29,7 +29,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // 5. 生成 TypeScript 类型定义文件
-    let rendered = interface_template_generator::generate_typescript_types(template_data)?;
+    let rendered =
+        generator_template::interface_template_generator::generate_typescript_types(template_data)?;
 
     // 6. 将结果写入文件
     std::fs::write("types.d.ts", rendered)?;
