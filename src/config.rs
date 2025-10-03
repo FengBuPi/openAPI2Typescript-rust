@@ -8,6 +8,15 @@ pub struct Config {
     pub declare_type: String,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            schema_path: "./openapi.json".to_string(),
+            declare_type: "interface".to_string(),
+        }
+    }
+}
+
 // 根据用配置中的 schema_path 判断如何获取 openapi.json 文件
 // 1. 网络请求获取
 // 2. 本地文件获取
