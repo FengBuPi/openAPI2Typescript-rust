@@ -1,4 +1,4 @@
-use crate::interface_template_generator::{
+use crate::generator_template::interface_template_generator::{
     BasicType, EnumTypeTemplate, EnumValue, ObjectTypeTemplate, Property, TypeDefinition,
 };
 use heck::ToPascalCase;
