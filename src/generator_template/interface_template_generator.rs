@@ -110,171 +110,6 @@ pub fn generate_typescript_types(
     // 初始化 Tera 模板引擎
     let tera = Tera::new("templates/**/*.tera")?;
 
-    // 创建示例数据 - 使用专一性设计
-    // let template_data = TemplateData {
-    //     namespace: "MyAPI".to_string(),
-    //     declare_type: "interface".to_string(),
-    //     nullable: true,
-    //     equal_symbol: None,
-    //     list: vec![
-    //         // 1. 对象类型 - Interface
-    //         TypeDefinition::Object {
-    //             type_name: "User".to_string(),
-    //             desc: Some("用户信息".to_string()),
-    //             object_type_template: ObjectTypeTemplate::Interface,
-    //             props: vec![
-    //                 Property {
-    //                     name: "id".to_string(),
-    //                     prop_type: "number".to_string(),
-    //                     required: true,
-    //                     desc: Some("用户唯一标识符".to_string()),
-    //                 },
-    //                 Property {
-    //                     name: "name".to_string(),
-    //                     prop_type: "string".to_string(),
-    //                     required: true,
-    //                     desc: Some("用户姓名".to_string()),
-    //                 },
-    //                 Property {
-    //                     name: "email".to_string(),
-    //                     prop_type: "string".to_string(),
-    //                     required: false,
-    //                     desc: Some("用户邮箱地址".to_string()),
-    //                 },
-    //             ],
-    //         },
-    //         // 2. 对象类型 - Type
-    //         TypeDefinition::Object {
-    //             type_name: "Config".to_string(),
-    //             desc: Some("配置对象".to_string()),
-    //             object_type_template: ObjectTypeTemplate::Type,
-    //             props: vec![
-    //                 Property {
-    //                     name: "debug".to_string(),
-    //                     prop_type: "boolean".to_string(),
-    //                     required: true,
-    //                     desc: Some("调试模式".to_string()),
-    //                 },
-    //                 Property {
-    //                     name: "timeout".to_string(),
-    //                     prop_type: "number".to_string(),
-    //                     required: true,
-    //                     desc: Some("超时时间".to_string()),
-    //                 },
-    //             ],
-    //         },
-    //         // 3. 枚举类型 - 字符串枚举
-    //         TypeDefinition::Enum {
-    //             type_name: "Status".to_string(),
-    //             desc: Some("状态枚举".to_string()),
-    //             basic_type: BasicType::String,
-    //             enum_type_template: EnumTypeTemplate::Enum,
-    //             values: vec![
-    //                 EnumValue {
-    //                     name: Some("PENDING".to_string()),
-    //                     value: "pending".to_string(),
-    //                     desc: None,
-    //                 },
-    //                 EnumValue {
-    //                     name: Some("SUCCESS".to_string()),
-    //                     value: "success".to_string(),
-    //                     desc: None,
-    //                 },
-    //                 EnumValue {
-    //                     name: Some("FAILED".to_string()),
-    //                     value: "failed".to_string(),
-    //                     desc: None,
-    //                 },
-    //             ],
-    //         },
-    //         // 4. 枚举类型 - 数字枚举
-    //         TypeDefinition::Enum {
-    //             type_name: "Priority".to_string(),
-    //             desc: Some("优先级枚举".to_string()),
-    //             basic_type: BasicType::Number,
-    //             enum_type_template: EnumTypeTemplate::Enum,
-    //             values: vec![
-    //                 EnumValue {
-    //                     name: Some("LOW".to_string()),
-    //                     value: "1".to_string(),
-    //                     desc: None,
-    //                 },
-    //                 EnumValue {
-    //                     name: Some("MEDIUM".to_string()),
-    //                     value: "2".to_string(),
-    //                     desc: None,
-    //                 },
-    //                 EnumValue {
-    //                     name: Some("HIGH".to_string()),
-    //                     value: "3".to_string(),
-    //                     desc: None,
-    //                 },
-    //             ],
-    //         },
-    //         // 5. 枚举类型 - 常量对象键类型提取模式
-    //         TypeDefinition::Enum {
-    //             type_name: "Theme".to_string(),
-    //             desc: Some("主题常量".to_string()),
-    //             basic_type: BasicType::String,
-    //             enum_type_template: EnumTypeTemplate::ConstAsEnum,
-    //             values: vec![
-    //                 EnumValue {
-    //                     name: Some("LIGHT".to_string()),
-    //                     value: "light".to_string(),
-    //                     desc: None,
-    //                 },
-    //                 EnumValue {
-    //                     name: Some("DARK".to_string()),
-    //                     value: "dark".to_string(),
-    //                     desc: None,
-    //                 },
-    //             ],
-    //         },
-    //         // 6. 枚举类型 - 联合类型
-    //         TypeDefinition::Enum {
-    //             type_name: "Language".to_string(),
-    //             desc: Some("语言联合类型".to_string()),
-    //             basic_type: BasicType::String,
-    //             enum_type_template: EnumTypeTemplate::Union,
-    //             values: vec![
-    //                 EnumValue {
-    //                     name: None,
-    //                     value: "zh-CN".to_string(),
-    //                     desc: None,
-    //                 },
-    //                 EnumValue {
-    //                     name: None,
-    //                     value: "en-US".to_string(),
-    //                     desc: None,
-    //                 },
-    //                 EnumValue {
-    //                     name: None,
-    //                     value: "ja-JP".to_string(),
-    //                     desc: None,
-    //                 },
-    //             ],
-    //         },
-    //         // 7. 基本数据类型 - 字符串
-    //         TypeDefinition::Basic {
-    //             type_name: "ApiKey".to_string(),
-    //             desc: Some("API密钥类型".to_string()),
-    //             basic_type: BasicType::String,
-    //         },
-    //         // 8. 基本数据类型 - 数字
-    //         TypeDefinition::Basic {
-    //             type_name: "UserId".to_string(),
-    //             desc: Some("用户ID类型".to_string()),
-    //             basic_type: BasicType::Number,
-    //         },
-    //         // 9. 基本数据类型 - 布尔
-    //         TypeDefinition::Basic {
-    //             type_name: "IsActive".to_string(),
-    //             desc: Some("激活状态类型".to_string()),
-    //             basic_type: BasicType::Boolean,
-    //         },
-    //     ],
-    // };
-
     // 创建上下文并添加数据
     let mut context = Context::new();
     context.insert("namespace", &template_data.namespace);
@@ -284,4 +119,198 @@ pub fn generate_typescript_types(
     let rendered = tera.render("interface.tera", &context)?;
 
     Ok(rendered)
+}
+
+mod tests {
+    use openapiv3::OpenAPI;
+
+    use crate::schema_to_interface_template_data;
+
+    use super::*;
+
+    #[test]
+    fn test_generate_typescript_types() -> Result<(), Box<dyn std::error::Error>> {
+        // 创建示例数据
+        // let template_data = TemplateData {
+        //     namespace: "MyAPI".to_string(),
+        //     declare_type: "interface".to_string(),
+        //     list: vec![
+        //         // 1. 对象类型 - Interface
+        //         TypeDefinition::Object {
+        //             type_name: "User".to_string(),
+        //             desc: Some("用户信息".to_string()),
+        //             object_type_template: ObjectTypeTemplate::Interface,
+        //             props: vec![
+        //                 Property {
+        //                     key: "id".to_string(),
+        //                     value: "number".to_string(),
+        //                     is_required: true,
+        //                     desc: Some("用户唯一标识符".to_string()),
+        //                 },
+        //                 Property {
+        //                     key: "name".to_string(),
+        //                     value: "string".to_string(),
+        //                     is_required: true,
+        //                     desc: Some("用户姓名".to_string()),
+        //                 },
+        //                 Property {
+        //                     key: "email".to_string(),
+        //                     value: "string".to_string(),
+        //                     is_required: false,
+        //                     desc: Some("用户邮箱地址".to_string()),
+        //                 },
+        //             ],
+        //         },
+        //         // 2. 对象类型 - Type
+        //         TypeDefinition::Object {
+        //             type_name: "Config".to_string(),
+        //             desc: Some("配置对象".to_string()),
+        //             object_type_template: ObjectTypeTemplate::Type,
+        //             props: vec![
+        //                 Property {
+        //                     key: "debug".to_string(),
+        //                     value: "boolean".to_string(),
+        //                     is_required: true,
+        //                     desc: Some("调试模式".to_string()),
+        //                 },
+        //                 Property {
+        //                     key: "timeout".to_string(),
+        //                     value: "number".to_string(),
+        //                     is_required: true,
+        //                     desc: Some("超时时间".to_string()),
+        //                 },
+        //             ],
+        //         },
+        //         // 3. 枚举类型 - 字符串枚举
+        //         TypeDefinition::Enum {
+        //             type_name: "Status".to_string(),
+        //             desc: Some("状态枚举".to_string()),
+        //             basic_type: BasicType::String,
+        //             enum_type_template: EnumTypeTemplate::Enum,
+        //             values: vec![
+        //                 EnumValue {
+        //                     key: Some("PENDING".to_string()),
+        //                     value: "pending".to_string(),
+        //                     desc: None,
+        //                 },
+        //                 EnumValue {
+        //                     key: Some("SUCCESS".to_string()),
+        //                     value: "success".to_string(),
+        //                     desc: None,
+        //                 },
+        //                 EnumValue {
+        //                     key: Some("FAILED".to_string()),
+        //                     value: "failed".to_string(),
+        //                     desc: None,
+        //                 },
+        //             ],
+        //         },
+        //         // 4. 枚举类型 - 数字枚举
+        //         TypeDefinition::Enum {
+        //             type_name: "Priority".to_string(),
+        //             desc: Some("优先级枚举".to_string()),
+        //             basic_type: BasicType::Number,
+        //             enum_type_template: EnumTypeTemplate::Enum,
+        //             values: vec![
+        //                 EnumValue {
+        //                     key: Some("LOW".to_string()),
+        //                     value: "1".to_string(),
+        //                     desc: None,
+        //                 },
+        //                 EnumValue {
+        //                     key: Some("MEDIUM".to_string()),
+        //                     value: "2".to_string(),
+        //                     desc: None,
+        //                 },
+        //                 EnumValue {
+        //                     key: Some("HIGH".to_string()),
+        //                     value: "3".to_string(),
+        //                     desc: None,
+        //                 },
+        //             ],
+        //         },
+        //         // 5. 枚举类型 - 常量对象键类型提取模式
+        //         TypeDefinition::Enum {
+        //             type_name: "Theme".to_string(),
+        //             desc: Some("主题常量".to_string()),
+        //             basic_type: BasicType::String,
+        //             enum_type_template: EnumTypeTemplate::ConstAsEnum,
+        //             values: vec![
+        //                 EnumValue {
+        //                     key: Some("LIGHT".to_string()),
+        //                     value: "light".to_string(),
+        //                     desc: None,
+        //                 },
+        //                 EnumValue {
+        //                     key: Some("DARK".to_string()),
+        //                     value: "dark".to_string(),
+        //                     desc: None,
+        //                 },
+        //             ],
+        //         },
+        //         // 6. 枚举类型 - 联合类型
+        //         TypeDefinition::Enum {
+        //             type_name: "Language".to_string(),
+        //             desc: Some("语言联合类型".to_string()),
+        //             basic_type: BasicType::String,
+        //             enum_type_template: EnumTypeTemplate::Union,
+        //             values: vec![
+        //                 EnumValue {
+        //                     key: None,
+        //                     value: "zh-CN".to_string(),
+        //                     desc: None,
+        //                 },
+        //                 EnumValue {
+        //                     key: None,
+        //                     value: "en-US".to_string(),
+        //                     desc: None,
+        //                 },
+        //                 EnumValue {
+        //                     key: None,
+        //                     value: "ja-JP".to_string(),
+        //                     desc: None,
+        //                 },
+        //             ],
+        //         },
+        //         // 7. 基本数据类型 - 字符串
+        //         TypeDefinition::Basic {
+        //             type_name: "ApiKey".to_string(),
+        //             desc: Some("API密钥类型".to_string()),
+        //             basic_type: BasicType::String,
+        //         },
+        //         // 8. 基本数据类型 - 数字
+        //         TypeDefinition::Basic {
+        //             type_name: "UserId".to_string(),
+        //             desc: Some("用户ID类型".to_string()),
+        //             basic_type: BasicType::Number,
+        //         },
+        //         // 9. 基本数据类型 - 布尔
+        //         TypeDefinition::Basic {
+        //             type_name: "IsActive".to_string(),
+        //             desc: Some("激活状态类型".to_string()),
+        //             basic_type: BasicType::Boolean,
+        //         },
+        //     ],
+        // };
+
+        // 本地文件测试
+        let openapi_spec: OpenAPI =
+            serde_json::from_str(&std::fs::read_to_string("openapi.json")?)?;
+
+        let template_data_list =
+            schema_to_interface_template_data::openapi_to_interface_template_data_list(
+                &openapi_spec,
+            )?;
+
+        let template_data = TemplateData {
+            namespace: "MyAPI".to_string(),
+            declare_type: "interface".to_string(),
+            list: template_data_list,
+        };
+
+        let result = generate_typescript_types(template_data)?;
+        std::fs::write("types.d.ts", result)?;
+        println!("types.d.ts 文件生成成功");
+        Ok(())
+    }
 }

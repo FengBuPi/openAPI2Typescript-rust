@@ -107,9 +107,7 @@ pub struct PropertySchema {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RequestBody {
     pub r#type: String,
-    #[serde(rename = "mediaType")]
     pub media_type: Option<String>,
-    #[serde(rename = "propertiesList")]
     pub properties_list: Option<Vec<Property>>,
 }
 
@@ -144,10 +142,10 @@ pub struct ApiDefinition {
     pub file: Option<Vec<FileParam>>,
     pub response: Response,
     pub options: Option<serde_json::Value>,
-    #[serde(rename = "hasParams")]
-    pub has_params: bool,
-    #[serde(rename = "hasHeader")]
-    pub has_header: bool,
+    // #[serde(rename = "hasParams")]
+    // pub has_params: bool,
+    // #[serde(rename = "hasHeader")]
+    // pub has_header: bool,
     #[serde(rename = "hasFormData")]
     pub has_form_data: bool,
     #[serde(rename = "hasPathVariables")]
@@ -156,37 +154,37 @@ pub struct ApiDefinition {
     pub has_api_prefix: bool,
 }
 
-impl ApiDefinition {
-    #[allow(dead_code)]
-    pub fn has_params(&self) -> bool {
-        self.params.as_ref().map_or(false, |p| p.has_params())
-    }
+// impl ApiDefinition {
+//     #[allow(dead_code)]
+//     pub fn has_params(&self) -> bool {
+//         self.params.as_ref().map_or(false, |p| p.has_params())
+//     }
 
-    #[allow(dead_code)]
-    pub fn has_header(&self) -> bool {
-        self.params.as_ref().map_or(false, |p| !p.header.is_empty())
-    }
+//     #[allow(dead_code)]
+//     pub fn has_header(&self) -> bool {
+//         self.params.as_ref().map_or(false, |p| !p.header.is_empty())
+//     }
 
-    #[allow(dead_code)]
-    pub fn has_form_data(&self) -> bool {
-        self.file.is_some()
-            || (self.body.as_ref().map_or(false, |b| {
-                b.media_type
-                    .as_ref()
-                    .map_or(false, |mt| mt == "multipart/form-data")
-            }))
-    }
+//     #[allow(dead_code)]
+//     pub fn has_form_data(&self) -> bool {
+//         self.file.is_some()
+//             || (self.body.as_ref().map_or(false, |b| {
+//                 b.media_type
+//                     .as_ref()
+//                     .map_or(false, |mt| mt == "multipart/form-data")
+//             }))
+//     }
 
-    #[allow(dead_code)]
-    pub fn has_path_variables(&self) -> bool {
-        self.path.contains('{')
-    }
+//     #[allow(dead_code)]
+//     pub fn has_path_variables(&self) -> bool {
+//         self.path.contains('{')
+//     }
 
-    #[allow(dead_code)]
-    pub fn has_api_prefix(&self) -> bool {
-        self.path.starts_with('/')
-    }
-}
+//     #[allow(dead_code)]
+//     pub fn has_api_prefix(&self) -> bool {
+//         self.path.starts_with('/')
+//     }
+// }
 
 /// 服务控制器模板数据
 #[derive(Serialize, Deserialize, Debug)]
@@ -213,8 +211,8 @@ pub fn generate_service_controller_typescript(
         &template_data.request_import_statement,
     );
     context.insert("namespace", &template_data.namespace);
-    context.insert("genType", &template_data.gen_type);
-    context.insert("requestOptionsType", &template_data.request_options_type);
+    context.insert("gen_type", &template_data.gen_type);
+    context.insert("request_options_type", &template_data.request_options_type);
     context.insert("list", &template_data.list);
 
     // 渲染模板
@@ -268,8 +266,8 @@ mod tests {
                         r#type: "User".to_string(),
                     },
                     options: None,
-                    has_params: true,
-                    has_header: false,
+                    // has_params: true,
+                    // has_header: false,
                     has_form_data: false,
                     has_path_variables: true,
                     has_api_prefix: true,
@@ -309,8 +307,8 @@ mod tests {
                         r#type: "User".to_string(),
                     },
                     options: None,
-                    has_params: false,
-                    has_header: true,
+                    // has_params: false,
+                    // has_header: true,
                     has_form_data: false,
                     has_path_variables: false,
                     has_api_prefix: true,
