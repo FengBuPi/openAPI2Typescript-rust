@@ -1,10 +1,14 @@
 mod config;
 mod generator_template;
+mod path_to_service_controller_template_data;
 mod schema_to_interface_template_data;
+mod utles;
 
 use config::Config;
 use generator_template::interface_template_generator::TemplateData;
 use openapiv3::OpenAPI;
+
+use crate::generator_template::service_controller_template_generator::ServiceControllerTemplateData;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,22 +23,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. 将 OpenAPI 规范转换为模板数据列表
     let template_data_list =
-        schema_to_interface_template_data::openapi_to_template_data_list(&openapi_spec)?;
+        schema_to_interface_template_data::openapi_to_interface_template_data_list(&openapi_spec)?;
 
-    // 4. 构建完整的模板数据
     let template_data = TemplateData {
         namespace: "MyAPI".to_string(),
         declare_type: config.declare_type.clone(),
         list: template_data_list,
     };
 
+    // 4. 将 OpenAPI 规范转换为接口模板数据列表
+    let interface_template_data_list =
+        path_to_service_controller_template_data::openapi_to_service_controller_template_data_list(
+            &openapi_spec,
+        )?;
+
+    let service_controller_template_data = ServiceControllerTemplateData {
+        namespace: "MyAPI".to_string(),
+        gen_type: "ts".to_string(),
+        request_import_statement: "import request, { RequestOptions } from '@/utils/request';"
+            .to_string(),
+        request_options_type: "RequestOptions".to_string(),
+        list: interface_template_data_list,
+    };
+
+    let rendered = generator_template::service_controller_template_generator::generate_service_controller_typescript(service_controller_template_data)?;
+
+    std::fs::write("service_controller.ts", rendered)?;
+    println!("\n✅ 结果已保存到 service_controller.ts 文件");
+
     // 5. 生成 TypeScript 类型定义文件
-    let rendered =
-        generator_template::interface_template_generator::generate_typescript_types(template_data)?;
+    // let rendered =
+    //     generator_template::interface_template_generator::generate_typescript_types(template_data)?;
 
     // 6. 将结果写入文件
-    std::fs::write("types.d.ts", rendered)?;
-    println!("\n✅ 结果已保存到 types.d.ts 文件");
+    // std::fs::write("types.d.ts", rendered)?;
+    // println!("\n✅ 结果已保存到 types.d.ts 文件");
 
     Ok(())
 }
