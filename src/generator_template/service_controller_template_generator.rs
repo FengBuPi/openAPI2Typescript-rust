@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use tera::{Context, Tera};
 
+// 导入 interface_template_generator 中的 Property 定义
+use crate::generator_template::interface_template_generator::Property;
+
 /// HTTP 方法枚举
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum HttpMethod {
@@ -88,21 +91,6 @@ impl Params {
     }
 }
 
-/// 属性定义
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Property {
-    pub key: String,
-    pub schema: PropertySchema,
-}
-
-/// 属性模式定义
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PropertySchema {
-    pub r#type: String,
-    pub required: bool,
-    pub description: Option<String>,
-}
-
 /// 请求体定义
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RequestBody {
@@ -153,38 +141,6 @@ pub struct ApiDefinition {
     #[serde(rename = "hasApiPrefix")]
     pub has_api_prefix: bool,
 }
-
-// impl ApiDefinition {
-//     #[allow(dead_code)]
-//     pub fn has_params(&self) -> bool {
-//         self.params.as_ref().map_or(false, |p| p.has_params())
-//     }
-
-//     #[allow(dead_code)]
-//     pub fn has_header(&self) -> bool {
-//         self.params.as_ref().map_or(false, |p| !p.header.is_empty())
-//     }
-
-//     #[allow(dead_code)]
-//     pub fn has_form_data(&self) -> bool {
-//         self.file.is_some()
-//             || (self.body.as_ref().map_or(false, |b| {
-//                 b.media_type
-//                     .as_ref()
-//                     .map_or(false, |mt| mt == "multipart/form-data")
-//             }))
-//     }
-
-//     #[allow(dead_code)]
-//     pub fn has_path_variables(&self) -> bool {
-//         self.path.contains('{')
-//     }
-
-//     #[allow(dead_code)]
-//     pub fn has_api_prefix(&self) -> bool {
-//         self.path.starts_with('/')
-//     }
-// }
 
 /// 服务控制器模板数据
 #[derive(Serialize, Deserialize, Debug)]
@@ -286,19 +242,15 @@ mod tests {
                         properties_list: Some(vec![
                             Property {
                                 key: "name".to_string(),
-                                schema: PropertySchema {
-                                    r#type: "string".to_string(),
-                                    required: true,
-                                    description: Some("用户姓名".to_string()),
-                                },
+                                value: "string".to_string(),
+                                is_required: true,
+                                desc: Some("用户姓名".to_string()),
                             },
                             Property {
                                 key: "email".to_string(),
-                                schema: PropertySchema {
-                                    r#type: "string".to_string(),
-                                    required: false,
-                                    description: Some("用户邮箱".to_string()),
-                                },
+                                value: "string".to_string(),
+                                is_required: false,
+                                desc: Some("用户邮箱".to_string()),
                             },
                         ]),
                     }),
@@ -307,8 +259,6 @@ mod tests {
                         r#type: "User".to_string(),
                     },
                     options: None,
-                    // has_params: false,
-                    // has_header: true,
                     has_form_data: false,
                     has_path_variables: false,
                     has_api_prefix: true,

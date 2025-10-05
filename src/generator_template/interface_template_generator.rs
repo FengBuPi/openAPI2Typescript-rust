@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use tera::{Context, Tera};
 
 /// 属性值 - 只用于对象类型
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Property {
     pub key: String,
     pub value: String,
@@ -11,7 +11,7 @@ pub struct Property {
 }
 
 /// 枚举值 - 只用于枚举类型
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EnumValue {
     /// 使用联合类型模版时，会忽略key
     pub key: Option<String>,
