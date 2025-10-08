@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use tera::{Context, Tera};
 
-// 导入 interface_template_generator 中的 Property 定义
 use crate::generator_template::interface_template_generator::Property;
 
 /// HTTP 方法枚举
@@ -70,21 +69,16 @@ pub enum ParamLocation {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Param {
     pub name: String,
-    pub alias: Option<String>,
     pub param_type: String,
     pub required: bool,
     pub description: Option<String>,
-    pub location: ParamLocation,
     pub schema: Option<ParamSchema>,
 }
 
 /// 参数模式定义
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ParamSchema {
-    pub param_type: String,
-    pub required: bool,
     pub default: Option<String>,
-    pub description: Option<String>,
 }
 
 /// 参数组
@@ -92,26 +86,19 @@ pub struct ParamSchema {
 pub struct Params {
     pub query: Vec<Param>,
     pub path: Vec<Param>,
+    /// 只能是内联类型形态
     pub header: Vec<Param>,
     pub cookie: Vec<Param>,
 }
 
-impl Params {
-    #[allow(dead_code)]
-    pub fn has_params(&self) -> bool {
-        !self.query.is_empty()
-            || !self.path.is_empty()
-            || !self.header.is_empty()
-            || !self.cookie.is_empty()
-    }
-}
-
-/// 请求体定义
+/// 请求体定义（枚举）
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct RequestBody {
-    pub r#type: String,
-    pub media_type: Option<String>,
-    pub properties_list: Option<Vec<Property>>,
+#[serde(tag = "body_type", content = "content", rename_all = "snake_case")]
+pub enum RequestBody {
+    /// 内联类型：直接在函数参数中定义对象结构
+    Inline { properties: Vec<Property> },
+    /// 引用类型：使用外部定义的类型名称
+    Reference(String),
 }
 
 /// 文件参数定义
@@ -122,10 +109,14 @@ pub struct FileParam {
     pub required: bool,
 }
 
-/// 响应定义
+/// 响应定义（枚举）
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Response {
-    pub r#type: String,
+#[serde(tag = "response_type", content = "content", rename_all = "snake_case")]
+pub enum Response {
+    /// 内联类型：直接定义响应对象结构
+    Inline { properties: Vec<Property> },
+    /// 引用类型：使用外部定义的类型名称
+    Reference(String),
 }
 
 /// API 定义
@@ -133,22 +124,18 @@ pub struct Response {
 pub struct ApiDefinition {
     pub desc: Option<String>,
     pub method: HttpMethod,
-    #[serde(rename = "pathInComment")]
-    pub path_in_comment: String,
     #[serde(rename = "functionName")]
     pub function_name: String,
     #[serde(rename = "typeName")]
     pub type_name: String,
     pub path: String,
+    /// 具有内联类型和引用类型文件类型的两种形态
     pub params: Option<Params>,
+    /// 具有内联类型和引用类型文件类型的两种形态
     pub body: Option<RequestBody>,
     pub file: Option<Vec<FileParam>>,
     pub response: Response,
     pub options: Option<serde_json::Value>,
-    // #[serde(rename = "hasParams")]
-    // pub has_params: bool,
-    // #[serde(rename = "hasHeader")]
-    // pub has_header: bool,
     #[serde(rename = "hasFormData")]
     pub has_form_data: bool,
     #[serde(rename = "hasPathVariables")]
@@ -208,37 +195,25 @@ mod tests {
                 ApiDefinition {
                     desc: Some("获取用户信息".to_string()),
                     method: HttpMethod::Get,
-                    path_in_comment: "/api/users/{id}".to_string(),
                     function_name: "getUserById".to_string(),
                     type_name: "GetUserByIdParams".to_string(),
-                    path: "/api/users/{id}".to_string(),
+                    path: "/api/users/&{id}".to_string(),
                     params: Some(Params {
                         query: vec![],
                         path: vec![Param {
                             name: "id".to_string(),
-                            alias: Some("id".to_string()),
                             param_type: "string".to_string(),
                             required: true,
                             description: Some("用户ID".to_string()),
-                            location: ParamLocation::Path,
-                            schema: Some(ParamSchema {
-                                param_type: "string".to_string(),
-                                required: true,
-                                default: None,
-                                description: Some("用户ID".to_string()),
-                            }),
+                            schema: Some(ParamSchema { default: None }),
                         }],
                         header: vec![],
                         cookie: vec![],
                     }),
                     body: None,
                     file: None,
-                    response: Response {
-                        r#type: "User".to_string(),
-                    },
+                    response: Response::Reference("User".to_string()),
                     options: None,
-                    // has_params: true,
-                    // has_header: false,
                     has_form_data: false,
                     has_path_variables: true,
                     has_api_prefix: true,
@@ -246,15 +221,12 @@ mod tests {
                 ApiDefinition {
                     desc: Some("创建用户".to_string()),
                     method: HttpMethod::Post,
-                    path_in_comment: "/api/users".to_string(),
                     function_name: "createUser".to_string(),
                     type_name: "CreateUserParams".to_string(),
                     path: "/api/users".to_string(),
                     params: None,
-                    body: Some(RequestBody {
-                        r#type: "CreateUserRequest".to_string(),
-                        media_type: Some("application/json".to_string()),
-                        properties_list: Some(vec![
+                    body: Some(RequestBody::Inline {
+                        properties: vec![
                             Property {
                                 key: "name".to_string(),
                                 value: "string".to_string(),
@@ -267,15 +239,83 @@ mod tests {
                                 is_required: false,
                                 desc: Some("用户邮箱".to_string()),
                             },
-                        ]),
+                        ],
                     }),
                     file: None,
-                    response: Response {
-                        r#type: "User".to_string(),
-                    },
+                    response: Response::Reference("User".to_string()),
                     options: None,
                     has_form_data: false,
                     has_path_variables: false,
+                    has_api_prefix: true,
+                },
+                ApiDefinition {
+                    desc: Some("更新用户信息".to_string()),
+                    method: HttpMethod::Put,
+                    function_name: "updateUserById".to_string(),
+                    type_name: "UpdateUserByIdParams".to_string(),
+                    path: "/api/users/{id}".to_string(),
+                    params: Some(Params {
+                        query: vec![
+                            Param {
+                                name: "include".to_string(),
+                                param_type: "string".to_string(),
+                                required: false,
+                                description: Some("包含的字段".to_string()),
+                                schema: Some(ParamSchema {
+                                    default: Some("id,name,email".to_string()),
+                                }),
+                            },
+                            Param {
+                                name: "fields".to_string(),
+                                param_type: "string".to_string(),
+                                required: false,
+                                description: Some("指定返回字段".to_string()),
+                                schema: Some(ParamSchema { default: None }),
+                            },
+                        ],
+                        path: vec![Param {
+                            name: "id".to_string(),
+                            param_type: "string".to_string(),
+                            required: true,
+                            description: Some("用户ID".to_string()),
+                            schema: Some(ParamSchema { default: None }),
+                        }],
+                        header: vec![Param {
+                            name: "Authorization".to_string(),
+                            param_type: "string".to_string(),
+                            required: true,
+                            description: Some("认证令牌".to_string()),
+                            schema: Some(ParamSchema { default: None }),
+                        }],
+                        cookie: vec![],
+                    }),
+                    body: Some(RequestBody::Inline {
+                        properties: vec![
+                            Property {
+                                key: "name".to_string(),
+                                value: "string".to_string(),
+                                is_required: false,
+                                desc: Some("用户姓名".to_string()),
+                            },
+                            Property {
+                                key: "email".to_string(),
+                                value: "string".to_string(),
+                                is_required: false,
+                                desc: Some("用户邮箱".to_string()),
+                            },
+                            Property {
+                                key: "age".to_string(),
+                                value: "number".to_string(),
+                                is_required: false,
+                                desc: Some("用户年龄".to_string()),
+                            },
+                        ],
+                    }),
+                    file: None,
+                    response: Response::Reference("User".to_string()),
+                    options: None,
+                    has_form_data: false,
+                    has_path_variables: true,
                     has_api_prefix: true,
                 },
             ],

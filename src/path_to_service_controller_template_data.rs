@@ -4,8 +4,8 @@ use crate::{
     generator_template::{
         interface_template_generator::Property,
         service_controller_template_generator::{
-            ApiDefinition, HttpMethod as TemplateHttpMethod, Param, ParamLocation, ParamSchema,
-            Params, RequestBody, Response,
+            ApiDefinition, HttpMethod as TemplateHttpMethod, Param, ParamSchema, Params,
+            RequestBody, Response,
         },
     },
     utles::{extract_type_name_from_ref, get_typescript_type_string},
@@ -16,72 +16,11 @@ pub fn openapi_to_service_controller_template_data_list(
 ) -> Result<Vec<ApiDefinition>, Box<dyn std::error::Error>> {
     let mut api_definitions: Vec<ApiDefinition> = Vec::new();
 
-    for (path, path_item) in &openapi.paths.paths {
-        match path_item {
-            ReferenceOr::Item(path_item) => {
-                // 处理 GET 方法
-                if let Some(operation) = &path_item.get {
-                    if let Some(api_def) = convert_operation_to_api_definition(
-                        path,
-                        &TemplateHttpMethod::Get,
-                        operation,
-                    )? {
-                        api_definitions.push(api_def);
-                    }
-                }
-
-                // 处理 POST 方法
-                if let Some(operation) = &path_item.post {
-                    if let Some(api_def) = convert_operation_to_api_definition(
-                        path,
-                        &TemplateHttpMethod::Post,
-                        operation,
-                    )? {
-                        api_definitions.push(api_def);
-                    }
-                }
-
-                // 处理 PUT 方法
-                if let Some(operation) = &path_item.put {
-                    if let Some(api_def) = convert_operation_to_api_definition(
-                        path,
-                        &TemplateHttpMethod::Put,
-                        operation,
-                    )? {
-                        api_definitions.push(api_def);
-                    }
-                }
-
-                // 处理 DELETE 方法
-                if let Some(operation) = &path_item.delete {
-                    if let Some(api_def) = convert_operation_to_api_definition(
-                        path,
-                        &TemplateHttpMethod::Delete,
-                        operation,
-                    )? {
-                        api_definitions.push(api_def);
-                    }
-                }
-
-                // 处理 PATCH 方法
-                if let Some(operation) = &path_item.patch {
-                    if let Some(api_def) = convert_operation_to_api_definition(
-                        path,
-                        &TemplateHttpMethod::Patch,
-                        operation,
-                    )? {
-                        api_definitions.push(api_def);
-                    }
-                }
-            }
-            // TODO: 支持路径引用解析
-            ReferenceOr::Reference { reference } => {
-                println!(
-                    "路径: {}属性为Reference对象: {}，暂不支持解析该场景",
-                    path, reference
-                );
-                continue;
-            }
+    for (path, method, operation) in openapi.operations() {
+        let method = TemplateHttpMethod::from_string(method)?;
+        let api_definition = convert_operation_to_api_definition(path, &method, operation)?;
+        if let Some(api_definition) = api_definition {
+            api_definitions.push(api_definition);
         }
     }
 
@@ -116,7 +55,6 @@ fn convert_operation_to_api_definition(
     Ok(Some(ApiDefinition {
         desc: operation.description.clone(),
         method: method.clone(),
-        path_in_comment: path.to_string(),
         function_name,
         type_name,
         path: path.to_string(),
@@ -171,33 +109,15 @@ fn convert_parameters(
             match param_ref {
                 ReferenceOr::Item(param) => {
                     let param_data = param.clone().parameter_data();
-                    let (location, param_type) = match param {
-                        openapiv3::Parameter::Query { .. } => {
-                            (ParamLocation::Query, "string".to_string())
-                        }
-                        openapiv3::Parameter::Path { .. } => {
-                            (ParamLocation::Path, "string".to_string())
-                        }
-                        openapiv3::Parameter::Header { .. } => {
-                            (ParamLocation::Header, "string".to_string())
-                        }
-                        openapiv3::Parameter::Cookie { .. } => {
-                            (ParamLocation::Cookie, "string".to_string())
-                        }
-                    };
+                    let param_type = "string".to_string();
 
                     let template_param = Param {
                         name: param_data.name.clone(),
-                        alias: Some(param_data.name.clone()),
                         param_type: param_type.clone(),
                         required: param_data.required,
                         description: param_data.description.clone(),
-                        location,
                         schema: Some(ParamSchema {
-                            param_type,
-                            required: param_data.required,
                             default: None, // TODO: 提取默认值
-                            description: param_data.description.clone(),
                         }),
                     };
 
@@ -240,14 +160,11 @@ fn convert_request_body(
     if let Some(body_ref) = request_body {
         match body_ref {
             ReferenceOr::Item(body) => {
-                let media_type = body.content.keys().next().cloned();
-                let properties_list = if let Some(content_type) = media_type.as_ref() {
-                    if let Some(media_type_obj) = body.content.get(content_type) {
-                        if let Some(schema) = &media_type_obj.schema {
-                            convert_schema_to_properties(schema)?
-                        } else {
-                            None
-                        }
+                // 获取第一个 content type 的 schema
+                let properties_list = if let Some((_, media_type_obj)) = body.content.iter().next()
+                {
+                    if let Some(schema) = &media_type_obj.schema {
+                        convert_schema_to_properties(schema)?
                     } else {
                         None
                     }
@@ -255,19 +172,17 @@ fn convert_request_body(
                     None
                 };
 
-                Ok(Some(RequestBody {
-                    r#type: "RequestBody".to_string(), // TODO: 从schema中提取类型
-                    media_type,
-                    properties_list,
-                }))
+                // 根据是否有 properties 决定使用内联类型还是引用类型
+                if let Some(properties) = properties_list {
+                    Ok(Some(RequestBody::Inline { properties }))
+                } else {
+                    // 如果没有提取到 properties，使用引用类型
+                    Ok(Some(RequestBody::Reference("any".to_string()))) // TODO: 从schema中提取更准确的类型名
+                }
             }
             ReferenceOr::Reference { reference } => {
-                let type_value = extract_type_name_from_ref(reference);
-                Ok(Some(RequestBody {
-                    r#type: type_value,
-                    media_type: None,
-                    properties_list: None,
-                }))
+                let type_name = extract_type_name_from_ref(reference);
+                Ok(Some(RequestBody::Reference(type_name)))
             }
         }
     } else {
@@ -331,34 +246,36 @@ fn convert_responses(
                         } else {
                             "any".to_string()
                         };
-                        return Ok(Response {
-                            r#type: response_type,
-                        });
+                        return Ok(Response::Reference(response_type));
                     }
                 }
             }
             ReferenceOr::Reference { reference } => {
                 let response_type = extract_type_name_from_ref(reference);
-                return Ok(Response {
-                    r#type: response_type,
-                });
+                return Ok(Response::Reference(response_type));
             }
         }
     }
 
-    Ok(Response {
-        r#type: "any".to_string(),
-    })
+    Ok(Response::Reference("any".to_string()))
 }
 
 fn has_form_data(
-    body: &Option<RequestBody>,
-    _request_body: &Option<openapiv3::ReferenceOr<openapiv3::RequestBody>>,
+    _body: &Option<RequestBody>,
+    request_body: &Option<openapiv3::ReferenceOr<openapiv3::RequestBody>>,
 ) -> bool {
-    if let Some(body) = body {
-        if let Some(media_type) = &body.media_type {
-            return media_type == "multipart/form-data";
+    if let Some(body_ref) = request_body {
+        match body_ref {
+            ReferenceOr::Item(body) => {
+                // 检查是否包含 multipart/form-data 或 application/x-www-form-urlencoded
+                return body.content.keys().any(|content_type| {
+                    content_type == "multipart/form-data"
+                        || content_type == "application/x-www-form-urlencoded"
+                });
+            }
+            ReferenceOr::Reference { .. } => false,
         }
+    } else {
+        false
     }
-    false
 }

@@ -3,149 +3,158 @@
 {{ requestImportStatement }}
 
 {% for api in list -%}
-/** {{ api.desc | default(value='此处后端没有提供注释') }} {{api.method | upper}} {{ api.pathInComment | safe }} */
-export async function {{ api.functionName }}(
-{%- if api.params and api.hasParams %}
-  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params
-  {%- if gen_type == "ts" -%}
-  : {{namespace}}.{{api.typeName}}
-    {# header 入参 -#}
-    {% if api.params.header -%}
-    & { // header
-    {% for param in api.params.header -%}
-    {% if param.description -%}
-    /** {{ param.description }} */
-    {% endif -%}
-      '{{ param.name }}'
-      {%- if not param.required -%}?{%- endif -%}
-      : {{ param.type }};
-    {% endfor -%}
-    }
-    {%- endif -%}
-  {%- endif -%}
-  {%- if api.hasParams -%}
-  {%- if api.body or api.file -%},{%- endif -%}
-  {%- endif -%}
-{%- endif -%}
-{%- if api.body -%}
-  body
-  {%- if gen_type == "ts" -%}
-  : {% if api.body.properties_list %}{
-    {%- for prop in api.body.properties_list %}
-    {% if prop.desc -%}
-    /** {{ prop.desc }} */
-    {% endif -%}
-    {{ prop.key }}{%- if not prop.is_required -%}?{%- endif -%}: {{ prop.value }},
-    {%- endfor %}
-  }
-  {%- else -%}
-  {{ api.body.type }}
-  {%- endif -%}
-  {%- endif -%}
-  {%- if api.file -%},{%- endif -%}
-{%- endif %}
-{%- if api.file -%}
-{%- for file in api.file -%}
-{{file.title | safe}}
-{%- if gen_type == "ts" -%}
-{%- if not file.required -%}?{%- endif -%}
-: File {%- if file.multiple -%}[]{%- endif -%}
-{%- endif -%}
-{%- if not loop.last -%},{%- endif -%}
-{%- endfor -%}
-{%- endif -%}
-{%- if api.body or api.hasParams or api.file -%},{%- endif -%}
-  options {%- if gen_type == "ts" -%}?: {{ request_options_type }}{%- endif -%}
-) {
-  {% if api.params and api.params.path -%}
-  const { {% for param in api.params.path %}'{{ param.name }}': {{ param.alias }}, {% endfor %}
-  {% if api.params.path -%}
-  ...queryParams
-  {% endif -%}
-  } = params;
-  {% endif -%}
-  {% if api.hasFormData -%}
-  const formData = new FormData();
-  {% if api.file -%}
-  {% for file in api.file %}
-  if({{file.title | safe}}){
-  {% if file.multiple %}
-  {{file.title | safe}}.forEach(f => formData.append('{{file.title | safe}}', f || ''));
-  {% else %}
-  formData.append('{{file.title | safe}}', {{file.title | safe}})
-  {% endif %}
-  }
-  {% endfor %}
-  {%- endif -%}
-  {% if api.body %}
-  Object.keys(body).forEach(ele => {
-    {% if gen_type == "ts" %}
-    const item = (body as any)[ele];
-    {% else %}
-    const item = body[ele];
-    {% endif %}
-    if (item !== undefined && item !== null) {
-      {% if gen_type == "ts" %}
-      if (typeof item == 'object' && not(item instanceof File)) {
-        if (item instanceof Array) {
-          item.forEach((f) => formData.append(ele, f || ''));
-        } else {
-          formData.append(ele, new Blob([JSON.stringify(item)], {type: 'application/json'}));
-        }
-      } else {
-        formData.append(ele, item);
-      }
-      {% else %}
-      formData.append(ele, typeof item == 'object' ? JSON.stringify(item) : item);
-      {% endif %}
-    }
-  });
-  {% endif %}
-  {% endif -%}
-
-  {% if api.hasPathVariables or api.hasApiPrefix -%}
-  return request{%- if gen_type == "ts" -%}<{{ api.response.type }}>{%- endif -%}(`{{ api.path | safe }}`, {
-  {% else -%}
-  return request{%- if gen_type == "ts" -%}<{{ api.response.type }}>{%- endif -%}('{{ api.path }}', {
-  {% endif -%}
-    method: '{{ api.method | upper }}',
-    {%- if api.hasHeader and api.body.media_type != "multipart/form-data" %}
-    headers: {
-      {%- if api.body.media_type %}
-      'Content-Type': '{{ api.body.media_type | safe }}',
-      {%- endif %}
-    },
-    {%- endif %}
-    {%- if api.params and api.params.query or api.params.path or api.params.header or api.params.cookie %}
-    params: {
-      {%- for query in api.params.query %}
-        {% if query.schema.default -%}
-          // {{query.name | safe}} has a default value: {{ query.schema.default | safe }}
-          '{{query.name | safe}}': '{{query.schema.default | safe}}',
+  {#- API 函数注释：描述 + HTTP方法 + 路径 -#}
+  /** {{ api.desc | default(value='此处后端没有提供注释') }} {{api.method | upper}} {{ api.path | safe }} */
+  export async function {{ api.functionName }}(
+    {#- 参数部分：query、path、header、cookie 参数 -#}
+    {%- if api.params and (api.params.query or api.params.path or api.params.header or api.params.cookie) %}
+      // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+      params
+      {%- if gen_type == "ts" -%}
+        : {{namespace}}.{{api.typeName}}
+        {#- header 入参 -#}
+        {% if api.params.header -%}
+          & { // header
+          {% for param in api.params.header -%}
+            {% if param.description -%}
+              /** {{ param.description }} */
+            {% endif -%}
+            '{{ param.name }}'
+            {%- if not param.required -%}?{%- endif -%}
+            : {{ param.param_type }};
+          {% endfor -%}
+          }
         {%- endif -%}
+      {%- endif -%}
+      {#- 参数分隔符：如果有body或file参数，添加逗号 -#}
+      {%- if api.params and (api.params.query or api.params.path or api.params.header or api.params.cookie) -%}
+        {%- if api.body or api.file -%},{%- endif -%}
+      {%- endif -%}
+    {%- endif -%}
+    {#- 请求体参数 -#}
+    {%- if api.body -%}
+      body
+      {%- if gen_type == "ts" -%}
+        : {% if api.body.body_type == "inline" %}{
+          {%- for prop in api.body.content.properties %}
+            {% if prop.desc -%}
+              /** {{ prop.desc }} */
+            {% endif -%}
+            {{ prop.key }}{%- if not prop.is_required -%}?{%- endif -%}: {{ prop.value }},
+          {%- endfor %}
+        }
+        {%- else -%}
+          {{ api.body.content }}
+        {%- endif -%}
+      {%- endif -%}
+      {%- if api.file -%},{%- endif -%}
+    {%- endif %}
+    {#- 文件参数 -#}
+    {%- if api.file -%}
+      {%- for file in api.file -%}
+        {{file.title | safe}}
+        {%- if gen_type == "ts" -%}
+          {%- if not file.required -%}?{%- endif -%}
+          : File {%- if file.multiple -%}[]{%- endif -%}
+        {%- endif -%}
+        {%- if not loop.last -%},{%- endif -%}
       {%- endfor -%}
-      {% if api.params and api.params.path %}...queryParams{% else %}...params{% endif %},
-      {%- for query in api.params.query %}
-        {%- if query.isComplexType %}
-          '{{query.name | safe}}': undefined,
-          {% if api.params and api.params.path %}...queryParams{% else %}...params{% endif %}['{{query.name | safe}}'],
+    {%- endif -%}
+    {#- 参数分隔符：如果有任何参数，添加逗号 -#}
+    {%- if api.body or (api.params and (api.params.query or api.params.path or api.params.header or api.params.cookie)) or api.file -%},{%- endif -%}
+    {#- 请求选项参数 -#}
+    options {%- if gen_type == "ts" -%}?: {{ request_options_type }}{%- endif -%}
+  ) {
+    {#- 参数解构：将path参数从params中解构出来，剩余参数作为queryParams -#}
+    {% if api.params and api.params.path -%}
+      const { {% for param in api.params.path %}{{ param.name }}, {% endfor %}
+      {% if api.params.path -%}
+        ...queryParams
+      {% endif -%}
+      } = params;
+    {% endif -%}
+    {#- FormData 处理：处理文件上传和表单数据 -#}
+    {% if api.hasFormData -%}
+      const formData = new FormData();
+      {#- 文件参数处理 -#}
+      {% if api.file -%}
+        {% for file in api.file %}
+          if({{file.title | safe}}){
+            {% if file.multiple %}
+              {{file.title | safe}}.forEach(f => formData.append('{{file.title | safe}}', f || ''));
+            {% else %}
+              formData.append('{{file.title | safe}}', {{file.title | safe}})
+            {% endif %}
+          }
+        {% endfor %}
+      {%- endif -%}
+      {#- 请求体数据转换为FormData -#}
+      {% if api.body %}
+        Object.keys(body).forEach(ele => {
+          {% if gen_type == "ts" %}
+            const item = (body as any)[ele];
+          {% else %}
+            const item = body[ele];
+          {% endif %}
+          if (item !== undefined && item !== null) {
+            {% if gen_type == "ts" %}
+              if (typeof item == 'object' && not(item instanceof File)) {
+                if (item instanceof Array) {
+                  item.forEach((f) => formData.append(ele, f || ''));
+                } else {
+                  formData.append(ele, new Blob([JSON.stringify(item)], {type: 'application/json'}));
+                }
+              } else {
+                formData.append(ele, item);
+              }
+            {% else %}
+              formData.append(ele, typeof item == 'object' ? JSON.stringify(item) : item);
+            {% endif %}
+          }
+        });
+      {% endif %}
+    {% endif -%}
+
+    {#- 请求调用：根据是否有路径变量选择模板字符串或普通字符串 -#}
+    {% if api.hasPathVariables or api.hasApiPrefix -%}
+      return request{%- if gen_type == "ts" -%}<{{namespace}}.{{ api.response.content }}>{%- endif -%}(`{{ api.path | replace(from="{", to="${") | replace(from="&{", to="${") | safe }}`, {
+    {% else -%}
+      return request{%- if gen_type == "ts" -%}<{{namespace}}.{{ api.response.content }}>{%- endif -%}('{{ api.path }}', {
+    {% endif -%}
+      method: '{{ api.method | upper }}',
+      {#- 请求参数：query、path、header、cookie参数 -#}
+      {%- if api.params and api.params.query or api.params.path or api.params.header or api.params.cookie %}
+        params: {
+          {#- 默认值参数 -#}
+          {%- for query in api.params.query %}
+            {% if query.schema.default -%}
+              // {{query.name | safe}} has a default value: {{ query.schema.default | safe }}
+              '{{query.name | safe}}': '{{query.schema.default | safe}}',
+            {%- endif -%}
+          {%- endfor -%}
+          {#- 参数展开：有path参数时使用queryParams，否则使用params -#}
+          {% if api.params and api.params.path %}...queryParams{% else %}...params{% endif %},
+          {#- 复杂类型参数处理 -#}
+          {%- for query in api.params.query %}
+            {%- if query.isComplexType %}
+              '{{query.name | safe}}': undefined,
+              {% if api.params and api.params.path %}...queryParams{% else %}...params{% endif %}['{{query.name | safe}}'],
+            {%- endif %}
+          {%- endfor -%}
+        },
+      {%- endif %}
+      {#- 请求数据：FormData或普通body -#}
+      {%- if api.hasFormData %}
+        data: formData,
+        requestType: 'form',
+      {%- else %}
+        {%- if api.body %}
+          data: body,
         {%- endif %}
-      {%- endfor -%}
-    },
-    {%- endif %}
-    {%- if api.hasFormData %}
-    data: formData,
-    {%- if api.body.media_type == "multipart/form-data" %}
-    requestType: 'form',
-    {%- endif %}
-    {%- else %}
-    {%- if api.body %}
-    data: body,
-    {%- endif %}
-    {%- endif %}
-    ...(options || {{api.options | json_encode}}),
-  });
-}
+      {%- endif %}
+      {#- 请求选项：合并用户传入的options -#}
+      ...(options || {{api.options | json_encode}}),
+    });
+  }
 
 {% endfor -%}
