@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use tera::{Context, Tera};
 
 // 导入 interface_template_generator 中的 Property 定义
@@ -23,17 +24,31 @@ pub enum HttpMethod {
     Options,
 }
 
-impl HttpMethod {
-    #[allow(dead_code)]
-    pub fn to_string(&self) -> String {
+impl fmt::Display for HttpMethod {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            HttpMethod::Get => "get".to_string(),
-            HttpMethod::Post => "post".to_string(),
-            HttpMethod::Put => "put".to_string(),
-            HttpMethod::Delete => "delete".to_string(),
-            HttpMethod::Patch => "patch".to_string(),
-            HttpMethod::Head => "head".to_string(),
-            HttpMethod::Options => "options".to_string(),
+            HttpMethod::Get => write!(f, "get"),
+            HttpMethod::Post => write!(f, "post"),
+            HttpMethod::Put => write!(f, "put"),
+            HttpMethod::Delete => write!(f, "delete"),
+            HttpMethod::Patch => write!(f, "patch"),
+            HttpMethod::Head => write!(f, "head"),
+            HttpMethod::Options => write!(f, "options"),
+        }
+    }
+}
+
+impl HttpMethod {
+    pub fn from_string(method: &str) -> Result<HttpMethod, Box<dyn std::error::Error>> {
+        match method {
+            "get" => Ok(HttpMethod::Get),
+            "post" => Ok(HttpMethod::Post),
+            "put" => Ok(HttpMethod::Put),
+            "delete" => Ok(HttpMethod::Delete),
+            "patch" => Ok(HttpMethod::Patch),
+            "head" => Ok(HttpMethod::Head),
+            "options" => Ok(HttpMethod::Options),
+            _ => Ok(HttpMethod::Post), // 不支持的http方法，降级为post请求
         }
     }
 }
