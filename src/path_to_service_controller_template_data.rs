@@ -4,8 +4,8 @@ use crate::{
     generator_template::{
         interface_template_generator::Property,
         service_controller_template_generator::{
-            ApiDefinition, HttpMethod as TemplateHttpMethod, Param, ParamSchema, Params,
-            RequestBody, Response,
+            ApiDefinition, HttpMethod as TemplateHttpMethod, JsonContentType, MediaTypeKind, Param,
+            ParamSchema, Params, PathParams, QueryParams, RequestBody, RequestBodyType, Response,
         },
     },
     utles::{extract_type_name_from_ref, get_typescript_type_string},
@@ -35,9 +35,6 @@ fn convert_operation_to_api_definition(
     // 生成函数名: 方法名+Path路径
     let function_name = generate_function_name(method, path);
 
-    // 生成类型名
-    let type_name = generate_type_name(&function_name);
-
     // 转换参数
     let params = convert_parameters(&operation.parameters)?;
 
@@ -53,10 +50,9 @@ fn convert_operation_to_api_definition(
     let has_api_prefix = path.starts_with('/');
 
     Ok(Some(ApiDefinition {
+        function_name,
         desc: operation.description.clone(),
         method: method.clone(),
-        function_name,
-        type_name,
         path: path.to_string(),
         params,
         body,
@@ -83,10 +79,7 @@ fn generate_function_name(method: &TemplateHttpMethod, path: &str) -> String {
     format!("{}{}", method.to_string(), capitalize(&resource))
 }
 
-// 生成类型名: 函数名+Params
-fn generate_type_name(function_name: &str) -> String {
-    format!("{}Params", capitalize(function_name))
-}
+// generate_type_name 函数已移除，type_name 现在内嵌在 Params 枚举中
 
 fn capitalize(s: &str) -> String {
     let mut chars = s.chars();
@@ -103,7 +96,6 @@ fn convert_parameters(
         let mut query_params = Vec::new();
         let mut path_params = Vec::new();
         let mut header_params = Vec::new();
-        let mut cookie_params = Vec::new();
 
         for param_ref in parameters {
             match param_ref {
@@ -125,7 +117,11 @@ fn convert_parameters(
                         openapiv3::Parameter::Query { .. } => query_params.push(template_param),
                         openapiv3::Parameter::Path { .. } => path_params.push(template_param),
                         openapiv3::Parameter::Header { .. } => header_params.push(template_param),
-                        openapiv3::Parameter::Cookie { .. } => cookie_params.push(template_param),
+                        // Cookie 参数会被浏览器自动携带，前端代码无需处理
+                        openapiv3::Parameter::Cookie { .. } => {
+                            // 忽略 Cookie 参数，浏览器会自动携带
+                            continue;
+                        }
                     }
                 }
                 ReferenceOr::Reference { reference: _ } => {
@@ -135,18 +131,29 @@ fn convert_parameters(
             }
         }
 
-        if query_params.is_empty()
-            && path_params.is_empty()
-            && header_params.is_empty()
-            && cookie_params.is_empty()
-        {
+        if query_params.is_empty() && path_params.is_empty() && header_params.is_empty() {
             Ok(None)
         } else {
             Ok(Some(Params {
-                query: query_params,
-                path: path_params,
-                header: header_params,
-                cookie: cookie_params,
+                query: if !query_params.is_empty() {
+                    Some(QueryParams::Inline {
+                        params: query_params,
+                    })
+                } else {
+                    None
+                },
+                path: if !path_params.is_empty() {
+                    Some(PathParams::Inline {
+                        params: path_params,
+                    })
+                } else {
+                    None
+                },
+                header: if !header_params.is_empty() {
+                    Some(header_params)
+                } else {
+                    None
+                },
             }))
         }
     } else {
@@ -161,28 +168,84 @@ fn convert_request_body(
         match body_ref {
             ReferenceOr::Item(body) => {
                 // 获取第一个 content type 的 schema
-                let properties_list = if let Some((_, media_type_obj)) = body.content.iter().next()
-                {
-                    if let Some(schema) = &media_type_obj.schema {
-                        convert_schema_to_properties(schema)?
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
+                if let Some((media_type_str, media_type_obj)) = body.content.iter().next() {
+                    let media_type = MediaTypeKind::from_str(media_type_str);
 
-                // 根据是否有 properties 决定使用内联类型还是引用类型
-                if let Some(properties) = properties_list {
-                    Ok(Some(RequestBody::Inline { properties }))
+                    // 根据媒体类型和 schema 决定 body_type
+                    let body_type = if let Some(schema) = &media_type_obj.schema {
+                        match &media_type {
+                            MediaTypeKind::ApplicationJson => {
+                                // JSON 类型：区分内联和引用
+                                let content = match schema {
+                                    ReferenceOr::Item(_) => {
+                                        // 尝试提取 properties
+                                        let properties_list = convert_schema_to_properties(schema)?;
+                                        if let Some(properties) = properties_list {
+                                            JsonContentType::Inline { properties }
+                                        } else {
+                                            // 如果没有提取到 properties，使用 any 引用类型
+                                            JsonContentType::Reference("any".to_string())
+                                        }
+                                    }
+                                    ReferenceOr::Reference { reference } => {
+                                        let type_name = extract_type_name_from_ref(reference);
+                                        JsonContentType::Reference(type_name)
+                                    }
+                                };
+                                RequestBodyType::Json { content }
+                            }
+                            MediaTypeKind::MultipartFormData => {
+                                // 表单数据：通常是内联定义
+                                let properties =
+                                    convert_schema_to_properties(schema)?.unwrap_or_else(Vec::new);
+                                RequestBodyType::FormData { properties }
+                            }
+                            MediaTypeKind::ApplicationFormUrlencoded => {
+                                // URL 编码表单：通常是内联定义
+                                let properties =
+                                    convert_schema_to_properties(schema)?.unwrap_or_else(Vec::new);
+                                RequestBodyType::FormUrlEncoded { properties }
+                            }
+                            _ => {
+                                // 其他类型：使用引用
+                                let type_ref = match schema {
+                                    ReferenceOr::Reference { reference } => {
+                                        extract_type_name_from_ref(reference)
+                                    }
+                                    ReferenceOr::Item(_) => "any".to_string(),
+                                };
+                                RequestBodyType::Other {
+                                    media_type: media_type_str.clone(),
+                                    type_ref,
+                                }
+                            }
+                        }
+                    } else {
+                        // 没有 schema，默认使用 any 类型
+                        RequestBodyType::Json {
+                            content: JsonContentType::Reference("any".to_string()),
+                        }
+                    };
+
+                    Ok(Some(RequestBody {
+                        description: body.description.clone(),
+                        body_type,
+                        required: body.required,
+                    }))
                 } else {
-                    // 如果没有提取到 properties，使用引用类型
-                    Ok(Some(RequestBody::Reference("any".to_string()))) // TODO: 从schema中提取更准确的类型名
+                    Ok(None)
                 }
             }
             ReferenceOr::Reference { reference } => {
                 let type_name = extract_type_name_from_ref(reference);
-                Ok(Some(RequestBody::Reference(type_name)))
+                // 对于引用类型，默认使用 application/json
+                Ok(Some(RequestBody {
+                    description: None,
+                    body_type: RequestBodyType::Json {
+                        content: JsonContentType::Reference(type_name),
+                    },
+                    required: true,
+                }))
             }
         }
     } else {
@@ -261,20 +324,12 @@ fn convert_responses(
 }
 
 fn has_form_data(
-    _body: &Option<RequestBody>,
-    request_body: &Option<openapiv3::ReferenceOr<openapiv3::RequestBody>>,
+    body: &Option<RequestBody>,
+    _request_body: &Option<openapiv3::ReferenceOr<openapiv3::RequestBody>>,
 ) -> bool {
-    if let Some(body_ref) = request_body {
-        match body_ref {
-            ReferenceOr::Item(body) => {
-                // 检查是否包含 multipart/form-data 或 application/x-www-form-urlencoded
-                return body.content.keys().any(|content_type| {
-                    content_type == "multipart/form-data"
-                        || content_type == "application/x-www-form-urlencoded"
-                });
-            }
-            ReferenceOr::Reference { .. } => false,
-        }
+    // 使用 RequestBodyType 的 is_form_data 方法来判断
+    if let Some(request_body) = body {
+        request_body.body_type.is_form_data()
     } else {
         false
     }
