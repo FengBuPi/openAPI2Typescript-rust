@@ -1,9 +1,3 @@
-{#- 专一性设计模式的模板渲染逻辑：
-对于每一个类型，根据type_kind字段来判断具体类型：
-- object: 对象类型，包含props和object_type_template
-- enum: 枚举类型，包含basic_type、values和enum_type_template  
-- basic: 基本类型，只包含basic_type
--#}
 declare namespace {{ namespace }} {
   {%- for type in list %}
       {%- if type.desc %}
