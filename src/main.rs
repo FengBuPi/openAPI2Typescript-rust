@@ -21,15 +21,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let openapi_spec: OpenAPI = config::get_openapi_spec(&config).await?;
     println!("当前 OpenAPI 版本: {:?}", openapi_spec.openapi);
 
-    // 3. 将 OpenAPI 规范转换为模板数据列表
+    // 3. 将 OpenAPI 规范转换为类型模板数据列表
     let template_data_list =
         schema_to_interface_template_data::openapi_to_interface_template_data_list(&openapi_spec)?;
 
     let template_data = TemplateData {
-        namespace: "MyAPI".to_string(),
+        namespace: config.namespace.clone(),
         declare_type: config.declare_type.clone(),
         list: template_data_list,
     };
+
+    generator_template::interface_template_generator::generate_typescript_types(template_data)?;
 
     // 4. 将 OpenAPI 规范转换为接口模板数据列表
     let interface_template_data_list =
@@ -38,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )?;
 
     let service_controller_template_data = ServiceControllerTemplateData {
-        namespace: "MyAPI".to_string(),
+        namespace: config.namespace.clone(),
         gen_type: "ts".to_string(),
         request_import_statement: "import request, { RequestOptions } from '@/utils/request';"
             .to_string(),
@@ -46,18 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         list: interface_template_data_list,
     };
 
-    let rendered = generator_template::service_controller_template_generator::generate_service_controller_typescript(service_controller_template_data)?;
-
-    std::fs::write("service_controller.ts", rendered)?;
-    println!("\n✅ 结果已保存到 service_controller.ts 文件");
-
-    // 5. 生成 TypeScript 类型定义文件
-    // let rendered =
-    //     generator_template::interface_template_generator::generate_typescript_types(template_data)?;
-
-    // 6. 将结果写入文件
-    // std::fs::write("types.d.ts", rendered)?;
-    // println!("\n✅ 结果已保存到 types.d.ts 文件");
+    generator_template::service_controller_template_generator::generate_service_controller_typescript(service_controller_template_data)?;
 
     Ok(())
 }

@@ -295,7 +295,7 @@ pub struct ServiceControllerTemplateData {
 #[allow(dead_code)]
 pub fn generate_service_controller_typescript(
     template_data: ServiceControllerTemplateData,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error>> {
     // 初始化 Tera 模板引擎
     let tera = Tera::new("templates/**/*.tera")?;
 
@@ -313,7 +313,9 @@ pub fn generate_service_controller_typescript(
     // 渲染模板
     let rendered = tera.render("service_controller.tera", &context)?;
 
-    Ok(rendered)
+    std::fs::write("service_controller.ts", rendered)?;
+    println!("\n✅ 结果已保存到 service_controller.ts 文件");
+    Ok(())
 }
 
 #[cfg(test)]
@@ -625,8 +627,7 @@ mod tests {
             ],
         };
 
-        let result = generate_service_controller_typescript(template_data)?;
-        std::fs::write("service_controller.ts", result)?;
+        generate_service_controller_typescript(template_data)?;
         Ok(())
     }
 }

@@ -4,6 +4,7 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
+    pub namespace: String,
     pub schema_path: String,
     pub declare_type: String,
 }
@@ -11,6 +12,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            namespace: "API".to_string(),
             schema_path: "./openapi.json".to_string(),
             declare_type: "interface".to_string(),
         }
