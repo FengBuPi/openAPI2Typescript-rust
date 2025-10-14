@@ -5,7 +5,7 @@ use crate::{
         interface_template_generator::Property,
         service_controller_template_generator::{
             ApiDefinition, HttpMethod as TemplateHttpMethod, JsonContentType, MediaTypeKind, Param,
-            ParamSchema, Params, PathParams, QueryParams, RequestBody, RequestBodyType, Response,
+            Params, PathParams, QueryParams, RequestBody, RequestBodyType, Response,
         },
     },
     utles::{extract_type_name_from_ref, get_typescript_type_string},
@@ -167,6 +167,7 @@ fn convert_operation_to_api_definition(
         desc: operation.description.clone(),
         method: method.clone(),
         path: converted_path,
+        origin_path: path.to_string(), // 保存原始路径，用于注释
         params,
         body,
         file: None, // TODO: 实现文件参数转换
@@ -213,16 +214,13 @@ fn convert_parameters(
             match param_ref {
                 ReferenceOr::Item(param) => {
                     let param_data = param.clone().parameter_data();
+                    // 路径上的变量只能是字符串
                     let param_type = "string".to_string();
-
                     let template_param = Param {
                         name: param_data.name.clone(),
                         param_type: param_type.clone(),
                         required: param_data.required,
                         description: param_data.description.clone(),
-                        schema: Some(ParamSchema {
-                            default: None, // TODO: 提取默认值
-                        }),
                     };
 
                     match param {
@@ -237,7 +235,7 @@ fn convert_parameters(
                     }
                 }
                 ReferenceOr::Reference { reference: _ } => {
-                    // TODO: 处理参数引用
+                    // 路径上的变量只能是字符串，不该是引用，直接忽略这种情况
                     continue;
                 }
             }

@@ -219,3 +219,123 @@ fn test_convert_path_to_template_string() {
 ✅ 没有路径变量的路径不受影响
 ✅ 所有单元测试通过
 
+---
+
+## 3. 代码清理：删除未使用的 schema 相关代码
+
+### 问题描述
+
+在 `Param` 结构体中存在 `schema` 字段和 `ParamSchema` 结构体，用于存储参数的默认值等信息。但是：
+1. 代码中所有地方都标记为 `TODO: 提取默认值`，从未实际实现
+2. 虽然模板中引用了 `query.schema.default`，但生成的数据始终为 `None`
+3. 这些未使用的代码增加了维护成本
+
+### 解决方案
+
+删除所有未使用的 schema 相关代码：
+
+#### 修改的结构体
+
+**之前：**
+```rust
+pub struct Param {
+    pub name: String,
+    pub param_type: String,
+    pub required: bool,
+    pub description: Option<String>,
+    pub schema: Option<ParamSchema>,  // ❌ 删除
+}
+
+pub struct ParamSchema {  // ❌ 整个结构体删除
+    pub default: Option<String>,
+}
+```
+
+**之后：**
+```rust
+pub struct Param {
+    pub name: String,
+    pub param_type: String,
+    pub required: bool,
+    pub description: Option<String>,
+}
+```
+
+#### 修改的文件
+
+1. **`service_controller_template_generator.rs`**
+   - 删除 `ParamSchema` 结构体定义
+   - 从 `Param` 结构体中删除 `schema` 字段
+   - 更新所有测试代码中的 `Param` 创建
+
+2. **`path_to_service_controller_template_data.rs`**
+   - 从导入中移除 `ParamSchema`
+   - 创建 `Param` 时不再设置 `schema` 字段
+
+3. **`service_controller.tera`**
+   - 删除对 `query.schema.default` 的引用
+   - 移除默认值处理逻辑
+
+### 效果对比
+
+#### 修改前
+```rust
+let template_param = Param {
+    name: param_data.name.clone(),
+    param_type: param_type.clone(),
+    required: param_data.required,
+    description: param_data.description.clone(),
+    schema: Some(ParamSchema {
+        default: None, // TODO: 提取默认值
+    }),
+};
+```
+
+#### 修改后
+```rust
+let template_param = Param {
+    name: param_data.name.clone(),
+    param_type: param_type.clone(),
+    required: param_data.required,
+    description: param_data.description.clone(),
+};
+```
+
+### 模板变化
+
+#### 修改前
+```tera
+params: {
+  {#- Query 参数默认值 -#}
+  {%- if api.params.query and api.params.query.query_type == "inline" %}
+    {%- for query in api.params.query.value.params %}
+      {% if query.schema.default -%}
+        // {{query.name | safe}} has a default value: {{ query.schema.default | safe }}
+        '{{query.name | safe}}': '{{query.schema.default | safe}}',
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+  {% if api.params.path %}...queryParams{% else %}...params{% endif %},
+```
+
+#### 修改后
+```tera
+params: {
+  {#- 参数展开：有path参数时使用queryParams，否则使用params -#}
+  {% if api.params.path %}...queryParams{% else %}...params{% endif %},
+```
+
+### 测试结果
+
+✅ 所有测试通过
+✅ 编译无错误
+✅ 生成的代码功能正常
+✅ 代码更简洁，易于维护
+
+### 收益
+
+1. **代码简化**：删除了未使用的结构体和字段
+2. **减少混淆**：移除了标记为 TODO 但从未实现的功能
+3. **提高可维护性**：减少了需要维护的代码量
+4. **性能优化**：减少了不必要的 `Option` 包装和内存分配
+

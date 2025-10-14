@@ -4,7 +4,7 @@
 
 {% for api in list -%}
   {#- API 函数注释：描述 + HTTP方法 + 路径 -#}
-  /** {{ api.desc | default(value='此处后端没有提供注释') }} {{api.method | upper}} {{ api.path | safe }} */
+  /** {{ api.desc | default(value='此处后端没有提供注释') }} {{api.method | upper}} {{ api.originPath | safe }} */
   export async function {{ api.functionName }}(
     {#- 参数部分：根据每个参数类型判断 -#}
     {%- if api.params %}
@@ -175,15 +175,6 @@
       {#- 请求参数：query、path、header 参数 -#}
       {%- if api.params and (api.params.query or api.params.path or api.params.header) %}
         params: {
-          {#- Query 参数默认值 -#}
-          {%- if api.params.query and api.params.query.query_type == "inline" %}
-            {%- for query in api.params.query.value.params %}
-              {% if query.schema.default -%}
-                // {{query.name | safe}} has a default value: {{ query.schema.default | safe }}
-                '{{query.name | safe}}': '{{query.schema.default | safe}}',
-              {%- endif -%}
-            {%- endfor -%}
-          {%- endif -%}
           {#- 参数展开：有path参数时使用queryParams，否则使用params -#}
           {% if api.params.path %}...queryParams{% else %}...params{% endif %},
           {#- 复杂类型参数处理 -#}

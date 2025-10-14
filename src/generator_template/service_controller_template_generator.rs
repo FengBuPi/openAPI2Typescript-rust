@@ -137,13 +137,6 @@ pub struct Param {
     pub param_type: String,
     pub required: bool,
     pub description: Option<String>,
-    pub schema: Option<ParamSchema>,
-}
-
-/// 参数模式定义
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ParamSchema {
-    pub default: Option<String>,
 }
 
 /// Query 参数类型（内联或引用）
@@ -266,6 +259,9 @@ pub struct ApiDefinition {
     pub method: HttpMethod,
     pub desc: Option<String>,
     pub path: String,
+    /// 原始路径，用于注释（保留 {variable} 格式）
+    #[serde(rename = "originPath")]
+    pub origin_path: String,
     /// 具有内联类型和引用类型的两种形态
     pub params: Option<Params>,
     /// 具有内联类型和引用类型的两种形态
@@ -336,7 +332,8 @@ mod tests {
                     desc: Some("示例1: 获取用户信息".to_string()),
                     method: HttpMethod::Get,
                     function_name: "getUserById".to_string(),
-                    path: "/api/users/{id}".to_string(),
+                    path: "/api/users/${id}".to_string(),
+                    origin_path: "/api/users/{id}".to_string(),
                     params: Some(Params {
                         query: None,
                         path: Some(PathParams::Inline {
@@ -345,7 +342,6 @@ mod tests {
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("用户ID".to_string()),
-                                schema: Some(ParamSchema { default: None }),
                             }],
                         }),
                         header: None,
@@ -364,6 +360,7 @@ mod tests {
                     method: HttpMethod::Post,
                     function_name: "createUser".to_string(),
                     path: "/api/users".to_string(),
+                    origin_path: "/api/users".to_string(),
                     params: None,
                     body: Some(RequestBody {
                         description: Some("创建用户的请求体".to_string()),
@@ -384,7 +381,8 @@ mod tests {
                     desc: Some("示例3:上传用户头像".to_string()),
                     method: HttpMethod::Post,
                     function_name: "uploadAvatar".to_string(),
-                    path: "/api/users/{id}/avatar".to_string(),
+                    path: "/api/users/${id}/avatar".to_string(),
+                    origin_path: "/api/users/{id}/avatar".to_string(),
                     params: Some(Params {
                         query: None,
                         path: Some(PathParams::Inline {
@@ -393,7 +391,6 @@ mod tests {
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("用户ID".to_string()),
-                                schema: Some(ParamSchema { default: None }),
                             }],
                         }),
                         header: None,
@@ -416,6 +413,7 @@ mod tests {
                     method: HttpMethod::Post,
                     function_name: "uploadFiles".to_string(),
                     path: "/api/files/upload".to_string(),
+                    origin_path: "/api/files/upload".to_string(),
                     params: None,
                     body: Some(RequestBody {
                         description: Some("上传文件的元数据".to_string()),
@@ -454,6 +452,7 @@ mod tests {
                     method: HttpMethod::Post,
                     function_name: "uploadFileWithMetadata".to_string(),
                     path: "/api/documents/upload".to_string(),
+                    origin_path: "/api/documents/upload".to_string(),
                     params: None,
                     body: Some(RequestBody {
                         description: Some("文档元数据".to_string()),
@@ -499,7 +498,8 @@ mod tests {
                     desc: Some("示例6:批量上传图片并提交相册信息".to_string()),
                     method: HttpMethod::Post,
                     function_name: "uploadPhotosToAlbum".to_string(),
-                    path: "/api/albums/{albumId}/photos".to_string(),
+                    path: "/api/albums/${albumId}/photos".to_string(),
+                    origin_path: "/api/albums/{albumId}/photos".to_string(),
                     params: Some(Params {
                         query: None,
                         path: Some(PathParams::Inline {
@@ -508,7 +508,6 @@ mod tests {
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("相册ID".to_string()),
-                                schema: Some(ParamSchema { default: None }),
                             }],
                         }),
                         header: None,
@@ -536,7 +535,8 @@ mod tests {
                     desc: Some("示例7:获取商品详情（完整参数示例）".to_string()),
                     method: HttpMethod::Get,
                     function_name: "getProductDetail".to_string(),
-                    path: "/api/products/{id}".to_string(),
+                    path: "/api/products/${id}".to_string(),
+                    origin_path: "/api/products/{id}".to_string(),
                     params: Some(Params {
                         // Query 参数 - 内联
                         query: Some(QueryParams::Inline {
@@ -546,25 +546,18 @@ mod tests {
                                     param_type: "string".to_string(),
                                     required: false,
                                     description: Some("包含的关联数据".to_string()),
-                                    schema: Some(ParamSchema {
-                                        default: Some("images,reviews".to_string()),
-                                    }),
                                 },
                                 Param {
                                     name: "locale".to_string(),
                                     param_type: "string".to_string(),
                                     required: false,
                                     description: Some("语言环境".to_string()),
-                                    schema: Some(ParamSchema {
-                                        default: Some("zh-CN".to_string()),
-                                    }),
                                 },
                                 Param {
                                     name: "fields".to_string(),
                                     param_type: "string".to_string(),
                                     required: false,
                                     description: Some("指定返回的字段".to_string()),
-                                    schema: Some(ParamSchema { default: None }),
                                 },
                             ],
                         }),
@@ -575,7 +568,6 @@ mod tests {
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("商品ID".to_string()),
-                                schema: Some(ParamSchema { default: None }),
                             }],
                         }),
                         // Header 参数 - 内联（Header 只能是内联）
@@ -585,14 +577,12 @@ mod tests {
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("授权令牌".to_string()),
-                                schema: Some(ParamSchema { default: None }),
                             },
                             Param {
                                 name: "X-Request-ID".to_string(),
                                 param_type: "string".to_string(),
                                 required: false,
                                 description: Some("请求追踪ID".to_string()),
-                                schema: Some(ParamSchema { default: None }),
                             },
                         ]),
                     }),
@@ -610,6 +600,7 @@ mod tests {
                     method: HttpMethod::Get,
                     function_name: "searchProducts".to_string(),
                     path: "/api/products/search".to_string(),
+                    origin_path: "/api/products/search".to_string(),
                     params: Some(Params {
                         // Query 参数 - 引用类型
                         query: Some(QueryParams::Reference("ProductSearchQuery".to_string())),
