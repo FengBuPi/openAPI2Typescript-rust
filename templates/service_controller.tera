@@ -36,10 +36,10 @@
             }
           {%- elif api.params.query and api.params.query.query_type == "reference" -%}
             {#- Query 引用类型 -#}
-            : {{namespace}}.{{ api.params.query.value }}
+            : {{ api.params.query.value }}
           {%- elif api.params.path and api.params.path.path_type == "reference" -%}
             {#- Path 引用类型 -#}
-            : {{namespace}}.{{ api.params.path.value }}
+            : {{ api.params.path.value }}
           {%- else -%}
             : any
           {%- endif -%}
@@ -167,9 +167,9 @@
 
     {#- 请求调用：根据是否有路径变量选择模板字符串或普通字符串 -#}
     {% if api.hasPathVariables or api.hasApiPrefix -%}
-      return request{%- if gen_type == "ts" -%}<{{namespace}}.{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}(`{{ api.path | replace(from="{", to="${") | replace(from="&{", to="${") | safe }}`, {
+      return request{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}(`{{ api.path | safe }}`, {
     {% else -%}
-      return request{%- if gen_type == "ts" -%}<{{namespace}}.{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}('{{ api.path }}', {
+      return request{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}('{{ api.path }}', {
     {% endif -%}
       method: '{{ api.method | upper }}',
       {#- 请求参数：query、path、header 参数 -#}

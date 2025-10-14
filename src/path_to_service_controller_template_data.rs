@@ -11,14 +11,119 @@ use crate::{
     utles::{extract_type_name_from_ref, get_typescript_type_string},
 };
 
+/// 判断类型名称是否是 TypeScript 内置类型
+fn is_typescript_builtin_type(type_name: &str) -> bool {
+    matches!(
+        type_name,
+        "string"
+            | "number"
+            | "boolean"
+            | "any"
+            | "void"
+            | "null"
+            | "undefined"
+            | "never"
+            | "unknown"
+            | "object"
+            | "symbol"
+            | "bigint"
+    )
+}
+
+/// 为类型名称添加 namespace 前缀（如果需要）
+/// 对于 TypeScript 内置类型，不添加前缀；对于自定义类型，添加 namespace 前缀
+/// 支持数组类型和泛型类型
+fn add_namespace_if_needed(type_name: String, namespace: &str) -> String {
+    // 如果是内置类型，直接返回
+    if is_typescript_builtin_type(&type_name) {
+        return type_name;
+    }
+
+    // 处理数组类型，如 "MyType[]" -> "API.MyType[]"
+    if type_name.ends_with("[]") {
+        let base_type = &type_name[..type_name.len() - 2];
+        if is_typescript_builtin_type(base_type) {
+            return type_name;
+        }
+        return format!("{}.{}[]", namespace, base_type);
+    }
+
+    // 处理泛型类型，如 "Array<MyType>" -> "Array<API.MyType>"
+    if let Some(start_idx) = type_name.find('<') {
+        if let Some(end_idx) = type_name.rfind('>') {
+            let generic_name = &type_name[..start_idx];
+            let inner_type = &type_name[start_idx + 1..end_idx];
+
+            // 对于常见的泛型容器类型，递归处理内部类型
+            if matches!(
+                generic_name,
+                "Array"
+                    | "Record"
+                    | "Promise"
+                    | "Map"
+                    | "Set"
+                    | "Partial"
+                    | "Required"
+                    | "Readonly"
+                    | "Pick"
+                    | "Omit"
+            ) {
+                let processed_inner = add_namespace_if_needed(inner_type.to_string(), namespace);
+                return format!("{}<{}>", generic_name, processed_inner);
+            }
+        }
+    }
+
+    // 普通自定义类型，直接添加 namespace
+    format!("{}.{}", namespace, type_name)
+}
+
+/// 将 OpenAPI 路径格式转换为 TypeScript 模板字符串格式
+/// 例如：/user/{id}/profile -> /user/${id}/profile
+/// 只有完整的花括号对才会被转换，避免误转换
+fn convert_path_to_template_string(path: &str) -> String {
+    let mut result = String::with_capacity(path.len() + 10);
+    let chars: Vec<char> = path.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        if chars[i] == '{' {
+            // 找到开始的花括号，寻找匹配的结束花括号
+            if let Some(end_pos) = chars[i + 1..].iter().position(|&c| c == '}') {
+                let close_pos = i + 1 + end_pos;
+                // 确保花括号之间有内容
+                if close_pos > i + 1 {
+                    // 这是一个完整的路径变量，转换为 ${variable}
+                    result.push('$');
+                    result.push('{');
+                    // 复制变量名
+                    for j in (i + 1)..close_pos {
+                        result.push(chars[j]);
+                    }
+                    result.push('}');
+                    i = close_pos + 1;
+                    continue;
+                }
+            }
+        }
+        // 不是路径变量，直接复制字符
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
+}
+
 pub fn openapi_to_service_controller_template_data_list(
     openapi: &OpenAPI,
+    namespace: &str,
 ) -> Result<Vec<ApiDefinition>, Box<dyn std::error::Error>> {
     let mut api_definitions: Vec<ApiDefinition> = Vec::new();
 
     for (path, method, operation) in openapi.operations() {
         let method = TemplateHttpMethod::from_string(method)?;
-        let api_definition = convert_operation_to_api_definition(path, &method, operation)?;
+        let api_definition =
+            convert_operation_to_api_definition(path, &method, operation, namespace)?;
         if let Some(api_definition) = api_definition {
             api_definitions.push(api_definition);
         }
@@ -31,29 +136,37 @@ fn convert_operation_to_api_definition(
     path: &str,
     method: &TemplateHttpMethod,
     operation: &Operation,
+    namespace: &str,
 ) -> Result<Option<ApiDefinition>, Box<dyn std::error::Error>> {
     // 生成函数名: 方法名+Path路径
     let function_name = generate_function_name(method, path);
 
     // 转换参数
-    let params = convert_parameters(&operation.parameters)?;
+    let params = convert_parameters(&operation.parameters, namespace)?;
 
     // 转换请求体
-    let body = convert_request_body(&operation.request_body)?;
+    let body = convert_request_body(&operation.request_body, namespace)?;
 
     // 转换响应
-    let response = convert_responses(&operation.responses)?;
+    let response = convert_responses(&operation.responses, namespace)?;
 
     // 计算布尔值
     let has_form_data = has_form_data(&body, &operation.request_body);
     let has_path_variables = path.contains('{');
     let has_api_prefix = path.starts_with('/');
 
+    // 将路径中的 {variable} 转换为 ${variable}，用于 TypeScript 模板字符串
+    let converted_path = if has_path_variables {
+        convert_path_to_template_string(path)
+    } else {
+        path.to_string()
+    };
+
     Ok(Some(ApiDefinition {
         function_name,
         desc: operation.description.clone(),
         method: method.clone(),
-        path: path.to_string(),
+        path: converted_path,
         params,
         body,
         file: None, // TODO: 实现文件参数转换
@@ -79,8 +192,6 @@ fn generate_function_name(method: &TemplateHttpMethod, path: &str) -> String {
     format!("{}{}", method.to_string(), capitalize(&resource))
 }
 
-// generate_type_name 函数已移除，type_name 现在内嵌在 Params 枚举中
-
 fn capitalize(s: &str) -> String {
     let mut chars = s.chars();
     match chars.next() {
@@ -91,6 +202,7 @@ fn capitalize(s: &str) -> String {
 
 fn convert_parameters(
     parameters: &Vec<openapiv3::ReferenceOr<openapiv3::Parameter>>,
+    _namespace: &str,
 ) -> Result<Option<Params>, Box<dyn std::error::Error>> {
     if !parameters.is_empty() {
         let mut query_params = Vec::new();
@@ -163,6 +275,7 @@ fn convert_parameters(
 
 fn convert_request_body(
     request_body: &Option<openapiv3::ReferenceOr<openapiv3::RequestBody>>,
+    namespace: &str,
 ) -> Result<Option<RequestBody>, Box<dyn std::error::Error>> {
     if let Some(body_ref) = request_body {
         match body_ref {
@@ -189,6 +302,8 @@ fn convert_request_body(
                                     }
                                     ReferenceOr::Reference { reference } => {
                                         let type_name = extract_type_name_from_ref(reference);
+                                        let type_name =
+                                            add_namespace_if_needed(type_name, namespace);
                                         JsonContentType::Reference(type_name)
                                     }
                                 };
@@ -210,7 +325,8 @@ fn convert_request_body(
                                 // 其他类型：使用引用
                                 let type_ref = match schema {
                                     ReferenceOr::Reference { reference } => {
-                                        extract_type_name_from_ref(reference)
+                                        let type_name = extract_type_name_from_ref(reference);
+                                        add_namespace_if_needed(type_name, namespace)
                                     }
                                     ReferenceOr::Item(_) => "any".to_string(),
                                 };
@@ -238,6 +354,7 @@ fn convert_request_body(
             }
             ReferenceOr::Reference { reference } => {
                 let type_name = extract_type_name_from_ref(reference);
+                let type_name = add_namespace_if_needed(type_name, namespace);
                 // 对于引用类型，默认使用 application/json
                 Ok(Some(RequestBody {
                     description: None,
@@ -284,6 +401,7 @@ fn convert_schema_to_properties(
 // 处理响应的类型
 fn convert_responses(
     responses: &openapiv3::Responses,
+    namespace: &str,
 ) -> Result<Response, Box<dyn std::error::Error>> {
     // 获取第一个成功响应
     let success_response = responses.responses.iter().find(|(code, _)| match code {
@@ -299,11 +417,15 @@ fn convert_responses(
                     if let Some(media_type_obj) = response.content.get(content_type) {
                         let response_type = if let Some(schema) = &media_type_obj.schema {
                             match schema {
-                                ReferenceOr::Item(schema) => get_typescript_type_string(
-                                    &ReferenceOr::Item(Box::new(schema.clone())),
-                                )?,
+                                ReferenceOr::Item(schema) => {
+                                    let type_name = get_typescript_type_string(
+                                        &ReferenceOr::Item(Box::new(schema.clone())),
+                                    )?;
+                                    add_namespace_if_needed(type_name, namespace)
+                                }
                                 ReferenceOr::Reference { reference } => {
-                                    extract_type_name_from_ref(reference)
+                                    let type_name = extract_type_name_from_ref(reference);
+                                    add_namespace_if_needed(type_name, namespace)
                                 }
                             }
                         } else {
@@ -315,6 +437,7 @@ fn convert_responses(
             }
             ReferenceOr::Reference { reference } => {
                 let response_type = extract_type_name_from_ref(reference);
+                let response_type = add_namespace_if_needed(response_type, namespace);
                 return Ok(Response::Reference(response_type));
             }
         }

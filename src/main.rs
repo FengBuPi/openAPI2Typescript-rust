@@ -37,6 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let interface_template_data_list =
         path_to_service_controller_template_data::openapi_to_service_controller_template_data_list(
             &openapi_spec,
+            &config.namespace,
         )?;
 
     let service_controller_template_data = ServiceControllerTemplateData {

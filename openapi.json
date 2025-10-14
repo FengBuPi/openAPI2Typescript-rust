@@ -1625,7 +1625,7 @@
                 }
             }
         },
-        "/admin/v1/admin/public-tag-group/{id}/tag/{tag_id/delete": {
+        "/admin/v1/admin/public-tag-group/{id}/tag/{tag_id}/delete": {
             "post": {
                 "description": "在标签组详情页 删除标签",
                 "tags": [
