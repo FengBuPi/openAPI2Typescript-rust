@@ -1,14 +1,19 @@
 mod config;
 mod generator_template;
 mod path_to_service_controller_template_data;
+mod path_to_service_index_template_data;
 mod schema_to_interface_template_data;
 mod utles;
 
+use chrono::Local;
 use config::Config;
 use generator_template::interface_template_generator::TemplateData;
 use openapiv3::OpenAPI;
 
-use crate::generator_template::service_controller_template_generator::ServiceControllerTemplateData;
+use crate::generator_template::{
+    service_controller_template_generator::ServiceControllerTemplateData,
+    service_index_template_generator::ServiceIndexTemplateData,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -50,6 +55,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     generator_template::service_controller_template_generator::generate_service_controller_typescript(service_controller_template_data)?;
+
+    // 5. 将 OpenAPI 规范转换为服务索引模板数据列表
+    let service_index_template_data_list =
+        path_to_service_index_template_data::openapi_to_service_index_template_data_list(
+            &openapi_spec,
+        )?;
+
+    let service_index_template_data = ServiceIndexTemplateData {
+        api_resource_modify_time: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+        list: service_index_template_data_list,
+    };
+
+    generator_template::service_index_template_generator::generate_service_index_typescript(
+        service_index_template_data,
+    )?;
 
     Ok(())
 }
