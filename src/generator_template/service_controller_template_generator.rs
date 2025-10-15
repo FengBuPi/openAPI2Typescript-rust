@@ -134,9 +134,13 @@ pub enum ParamLocation {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Param {
     pub name: String,
+    #[serde(rename = "paramType")]
     pub param_type: String,
     pub required: bool,
     pub description: Option<String>,
+    /// 参数名是否需要引号（不符合 JS/TS 标识符规范时为 true）
+    #[serde(rename = "needsQuotes")]
+    pub needs_quotes: bool,
 }
 
 /// Query 参数类型（内联或引用）
@@ -342,6 +346,7 @@ mod tests {
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("用户ID".to_string()),
+                                needs_quotes: false,
                             }],
                         }),
                         header: None,
@@ -391,6 +396,7 @@ mod tests {
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("用户ID".to_string()),
+                                needs_quotes: false,
                             }],
                         }),
                         header: None,
@@ -508,6 +514,7 @@ mod tests {
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("相册ID".to_string()),
+                                needs_quotes: false,
                             }],
                         }),
                         header: None,
@@ -546,18 +553,21 @@ mod tests {
                                     param_type: "string".to_string(),
                                     required: false,
                                     description: Some("包含的关联数据".to_string()),
+                                    needs_quotes: false,
                                 },
                                 Param {
                                     name: "locale".to_string(),
                                     param_type: "string".to_string(),
                                     required: false,
                                     description: Some("语言环境".to_string()),
+                                    needs_quotes: false,
                                 },
                                 Param {
                                     name: "fields".to_string(),
                                     param_type: "string".to_string(),
                                     required: false,
                                     description: Some("指定返回的字段".to_string()),
+                                    needs_quotes: false,
                                 },
                             ],
                         }),
@@ -568,6 +578,7 @@ mod tests {
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("商品ID".to_string()),
+                                needs_quotes: false,
                             }],
                         }),
                         // Header 参数 - 内联（Header 只能是内联）
@@ -577,12 +588,14 @@ mod tests {
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("授权令牌".to_string()),
+                                needs_quotes: false,
                             },
                             Param {
                                 name: "X-Request-ID".to_string(),
                                 param_type: "string".to_string(),
                                 required: false,
                                 description: Some("请求追踪ID".to_string()),
+                                needs_quotes: false,
                             },
                         ]),
                     }),

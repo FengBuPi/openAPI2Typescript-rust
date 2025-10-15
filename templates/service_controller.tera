@@ -21,7 +21,7 @@
                   {% if param.description -%}
                     /** {{ param.description }} */
                   {% endif -%}
-                  {{ param.name }}{%- if not param.required -%}?{%- endif -%}: {{ param.param_type }};
+                  {% if param.needsQuotes -%}'{% endif -%}{{ param.name }}{% if param.needsQuotes -%}'{% endif -%}{%- if not param.required -%}?{%- endif -%}: {{ param.paramType }};
                 {%- endfor -%}
               {%- endif -%}
               {#- Path 参数 -#}
@@ -30,7 +30,7 @@
                   {% if param.description -%}
                     /** {{ param.description }} */
                   {% endif -%}
-                  {{ param.name }}: {{ param.param_type }};
+                  {% if param.needsQuotes -%}'{% endif -%}{{ param.name }}{% if param.needsQuotes -%}'{% endif -%}: {{ param.paramType }};
                 {%- endfor -%}
               {%- endif -%}
             }
@@ -50,9 +50,9 @@
               {% if param.description -%}
                 /** {{ param.description }} */
               {% endif -%}
-              '{{ param.name }}'
+              {% if param.needsQuotes -%}'{% endif -%}{{ param.name }}{% if param.needsQuotes -%}'{% endif -%}
               {%- if not param.required -%}?{%- endif -%}
-              : {{ param.param_type }};
+              : {{ param.paramType }};
             {% endfor -%}
             }
           {%- endif -%}

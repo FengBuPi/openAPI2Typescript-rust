@@ -1,6 +1,196 @@
 use heck::ToPascalCase;
 use openapiv3::{ReferenceOr, Schema};
 
+// ============================================================================
+// 常量定义
+// ============================================================================
+
+/// TypeScript 保留关键字列表
+/// 这些关键字不能用作标识符名称
+pub const TYPESCRIPT_RESERVED_KEYWORDS: &[&str] = &[
+    // 基础关键字
+    "break",
+    "case",
+    "catch",
+    "class",
+    "const",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "enum",
+    "export",
+    "extends",
+    "false",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "import",
+    "in",
+    "instanceof",
+    "new",
+    "null",
+    "return",
+    "super",
+    "switch",
+    "this",
+    "throw",
+    "true",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with",
+    // ES6+ 关键字
+    "as",
+    "implements",
+    "interface",
+    "let",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "static",
+    "yield",
+    // TypeScript 类型关键字
+    "any",
+    "boolean",
+    "constructor",
+    "declare",
+    "get",
+    "module",
+    "require",
+    "number",
+    "set",
+    "string",
+    "symbol",
+    "type",
+    "from",
+    "of",
+];
+
+// ============================================================================
+// 标识符验证和清理函数
+// ============================================================================
+
+/// 判断类型名称是否是 TypeScript 内置类型
+///
+/// # 参数
+/// * `type_name` - 待检查的类型名称
+///
+/// # 返回值
+/// * `true` - 是 TypeScript 内置类型
+/// * `false` - 不是内置类型
+///
+/// # 示例
+/// ```rust
+/// assert!(is_typescript_builtin_type("string"));
+/// assert!(is_typescript_builtin_type("number"));
+/// assert!(is_typescript_builtin_type("boolean"));
+/// assert!(!is_typescript_builtin_type("User"));
+/// assert!(!is_typescript_builtin_type("CustomType"));
+/// ```
+pub fn is_typescript_builtin_type(type_name: &str) -> bool {
+    matches!(
+        type_name,
+        "string"
+            | "number"
+            | "boolean"
+            | "any"
+            | "void"
+            | "null"
+            | "undefined"
+            | "never"
+            | "unknown"
+            | "object"
+            | "symbol"
+            | "bigint"
+    )
+}
+
+/// 验证属性名称是否符合 TypeScript 标识符规范
+///
+/// # 规则说明
+/// 1. 必须以字母、下划线(_)或美元符号($)开头
+/// 2. 后续字符可以是字母、数字、下划线(_)或美元符号($)
+/// 3. 不能是 TypeScript 保留关键字
+/// 4. 不能为空字符串
+///
+/// # 参数
+/// * `name` - 待验证的标识符名称
+///
+/// # 返回值
+/// * `true` - 符合 TypeScript 标识符规范
+/// * `false` - 不符合规范
+///
+/// # 示例
+/// ```rust
+/// assert!(is_valid_typescript_identifier("userName"));
+/// assert!(is_valid_typescript_identifier("_private"));
+/// assert!(is_valid_typescript_identifier("$global"));
+/// assert!(!is_valid_typescript_identifier("123abc"));
+/// assert!(!is_valid_typescript_identifier("class"));
+/// assert!(!is_valid_typescript_identifier("-"));
+/// assert!(!is_valid_typescript_identifier(""));
+/// ```
+pub fn is_valid_typescript_identifier(name: &str) -> bool {
+    // 检查是否为空
+    if name.is_empty() {
+        return false;
+    }
+
+    let chars: Vec<char> = name.chars().collect();
+
+    // 检查第一个字符：必须是字母、下划线或美元符号
+    let first_char = chars[0];
+    if !first_char.is_ascii_alphabetic() && first_char != '_' && first_char != '$' {
+        return false;
+    }
+
+    // 检查后续字符：必须是字母、数字、下划线或美元符号
+    for &ch in &chars[1..] {
+        if !ch.is_ascii_alphanumeric() && ch != '_' && ch != '$' {
+            return false;
+        }
+    }
+
+    // 检查是否为保留关键字
+    !TYPESCRIPT_RESERVED_KEYWORDS.contains(&name)
+}
+
+/// 检查参数名是否需要使用引号（不符合标识符规范）
+///
+/// # 功能说明
+/// 在 TypeScript 对象字面量中，不符合标识符规范的属性名需要用引号包裹。
+/// 例如：`{ 'user-name': string, '-': string, 'class': string }`
+///
+/// # 参数
+/// * `name` - 参数名称
+///
+/// # 返回值
+/// * `true` - 需要引号（不符合标识符规范）
+/// * `false` - 不需要引号（符合标识符规范）
+///
+/// # 示例
+/// ```rust
+/// assert!(needs_quotes("user-name"));  // 包含短横线
+/// assert!(needs_quotes("-"));          // 只有短横线
+/// assert!(needs_quotes("123abc"));     // 以数字开头
+/// assert!(needs_quotes("class"));      // 保留关键字
+/// assert!(!needs_quotes("userName"));  // 正常标识符
+/// ```
+pub fn needs_quotes_for_param_name(name: &str) -> bool {
+    !is_valid_typescript_identifier(name)
+}
+
+// ============================================================================
+// 类型转换函数
+// ============================================================================
+
 /// 从引用路径中提取类型名称并转换为 PascalCase
 ///
 /// # 功能说明
