@@ -103,16 +103,23 @@ impl fmt::Display for HttpMethod {
 }
 
 impl HttpMethod {
-    pub fn from_string(method: &str) -> Result<HttpMethod, Box<dyn std::error::Error>> {
+    pub fn from_string(method: &str) -> HttpMethod {
         match method {
-            "get" => Ok(HttpMethod::Get),
-            "post" => Ok(HttpMethod::Post),
-            "put" => Ok(HttpMethod::Put),
-            "delete" => Ok(HttpMethod::Delete),
-            "patch" => Ok(HttpMethod::Patch),
-            "head" => Ok(HttpMethod::Head),
-            "options" => Ok(HttpMethod::Options),
-            _ => Ok(HttpMethod::Post), // 不支持的http方法，降级为post请求
+            "get" => HttpMethod::Get,
+            "GET" => HttpMethod::Get,
+            "post" => HttpMethod::Post,
+            "POST" => HttpMethod::Post,
+            "put" => HttpMethod::Put,
+            "PUT" => HttpMethod::Put,
+            "delete" => HttpMethod::Delete,
+            "DELETE" => HttpMethod::Delete,
+            "patch" => HttpMethod::Patch,
+            "PATCH" => HttpMethod::Patch,
+            "head" => HttpMethod::Head,
+            "HEAD" => HttpMethod::Head,
+            "options" => HttpMethod::Options,
+            "OPTIONS" => HttpMethod::Options,
+            _ => HttpMethod::Post, // 不支持的http方法，降级为post请求
         }
     }
 }
@@ -282,7 +289,7 @@ pub struct ApiDefinition {
 }
 
 /// 服务控制器模板数据
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ServiceControllerTemplateData {
     pub request_import_statement: String,
     pub namespace: String,
@@ -294,6 +301,7 @@ pub struct ServiceControllerTemplateData {
 /// 生成服务控制器 TypeScript 代码
 #[allow(dead_code)]
 pub fn generate_service_controller_typescript(
+    file_name: &str,
     template_data: ServiceControllerTemplateData,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // 初始化 Tera 模板引擎
@@ -313,8 +321,8 @@ pub fn generate_service_controller_typescript(
     // 渲染模板
     let rendered = tera.render("service_controller.tera", &context)?;
 
-    std::fs::write("service_controller.ts", rendered)?;
-    println!("\n✅ 结果已保存到 service_controller.ts 文件");
+    std::fs::write(file_name, rendered)?;
+    println!("\n✅ 结果已保存到 {file_name}.ts 文件");
     Ok(())
 }
 
@@ -631,7 +639,7 @@ mod tests {
             ],
         };
 
-        generate_service_controller_typescript(template_data)?;
+        generate_service_controller_typescript("service_controller.ts", template_data)?;
         Ok(())
     }
 }

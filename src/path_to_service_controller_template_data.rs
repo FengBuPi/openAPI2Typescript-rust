@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use heck::ToPascalCase;
 use openapiv3::{OpenAPI, Operation, ReferenceOr};
 
@@ -7,6 +9,7 @@ use crate::{
         service_controller_template_generator::{
             ApiDefinition, HttpMethod as TemplateHttpMethod, JsonContentType, MediaTypeKind, Param,
             Params, PathParams, QueryParams, RequestBody, RequestBodyType, Response,
+            ServiceControllerTemplateData,
         },
     },
     utles::{
@@ -14,6 +17,91 @@ use crate::{
         needs_quotes_for_param_name,
     },
 };
+
+/// 将 OpenAPI path中的操作根据tag分组
+///
+/// # 功能说明
+/// 遍历 OpenAPI 规范中的所有操作，根据每个操作的 tag 进行分组。
+/// 每个 tag 对应一个 ServiceControllerTemplateData，包含该 tag 下的所有 API 定义。
+///
+/// # 参数
+/// * `openapi` - OpenAPI 规范对象
+/// * `namespace` - TypeScript 命名空间前缀
+///
+/// # 返回值
+/// * `Ok(HashMap<String, ServiceControllerTemplateData>)` - 按 tag 分组的 API 定义列表
+/// * `Err(Box<dyn std::error::Error>)` - 转换过程中的错误
+pub fn openapi_to_service_controller_template_data_group_list(
+    openapi: &OpenAPI,
+    request_import_statement: &str,
+    namespace: &str,
+    gen_type: &str,
+    request_options_type: &str,
+) -> Result<HashMap<String, ServiceControllerTemplateData>, Box<dyn std::error::Error>> {
+    // 使用 HashMap 来按 tag 分组，避免重复创建 ApiGroup
+    let mut tag_groups: std::collections::HashMap<String, ServiceControllerTemplateData> =
+        std::collections::HashMap::new();
+
+    // 遍历所有操作
+    for (path, method, operation) in openapi.operations() {
+        // 获取操作的 tag，如果没有则使用 "default"
+        let tag = operation
+            .tags
+            .first()
+            .map(|t| t.clone())
+            .unwrap_or_else(|| "default".to_string());
+
+        // 尝试转换 HTTP 方法
+        let template_method = TemplateHttpMethod::from_string(method);
+
+        // 判断是否存在该 tag 组，不存在则创建
+        if !tag_groups.contains_key(&tag) {
+            tag_groups.insert(
+                tag,
+                ServiceControllerTemplateData {
+                    request_import_statement: request_import_statement.to_string(),
+                    namespace: namespace.to_string(),
+                    gen_type: gen_type.to_string(),
+                    request_options_type: request_options_type.to_string(),
+                    list: vec![],
+                },
+            );
+        } else {
+            let api_definition =
+                convert_operation_to_api_definition(path, &template_method, operation, namespace)?;
+            tag_groups.get_mut(&tag).unwrap().list.push(api_definition);
+        }
+    }
+    Ok(tag_groups)
+}
+
+/// 将 OpenAPI 定义转换为服务控制器模板数据列表（不分组，直接生成一个文件）
+///
+/// # 功能说明
+/// 遍历 OpenAPI 文档中的所有操作（API端点），将每个操作转换为
+/// TypeScript 服务控制器函数定义所需的数据结构。
+///
+/// # 参数
+/// * `openapi` - OpenAPI 文档对象
+/// * `namespace` - TypeScript 类型的命名空间（如 "API"）
+///
+/// # 返回值
+/// * `Ok(Vec<ApiDefinition>)` - API 定义列表
+/// * `Err(Box<dyn std::error::Error>)` - 转换过程中的错误
+pub fn openapi_to_service_controller_template_data_list(
+    openapi: &OpenAPI,
+    namespace: &str,
+) -> Result<Vec<ApiDefinition>, Box<dyn std::error::Error>> {
+    let api_definitions = openapi
+        .operations()
+        .filter_map(|(path, method, operation)| {
+            let method = TemplateHttpMethod::from_string(method);
+            convert_operation_to_api_definition(path, &method, operation, namespace).ok()
+        })
+        .collect();
+
+    Ok(api_definitions)
+}
 
 /// 为类型名称添加 namespace 前缀（如果需要）
 /// 对于 TypeScript 内置类型，不添加前缀；对于自定义类型，添加 namespace 前缀
@@ -113,36 +201,6 @@ fn convert_path_to_template_string(path: &str) -> String {
     result
 }
 
-/// 将 OpenAPI 定义转换为服务控制器模板数据列表
-///
-/// # 功能说明
-/// 遍历 OpenAPI 文档中的所有操作（API端点），将每个操作转换为
-/// TypeScript 服务控制器函数定义所需的数据结构。
-///
-/// # 参数
-/// * `openapi` - OpenAPI 文档对象
-/// * `namespace` - TypeScript 类型的命名空间（如 "API"）
-///
-/// # 返回值
-/// * `Ok(Vec<ApiDefinition>)` - API 定义列表
-/// * `Err(Box<dyn std::error::Error>)` - 转换过程中的错误
-pub fn openapi_to_service_controller_template_data_list(
-    openapi: &OpenAPI,
-    namespace: &str,
-) -> Result<Vec<ApiDefinition>, Box<dyn std::error::Error>> {
-    let api_definitions = openapi
-        .operations()
-        .filter_map(|(path, method, operation)| {
-            let method = TemplateHttpMethod::from_string(method).ok()?;
-            convert_operation_to_api_definition(path, &method, operation, namespace)
-                .ok()
-                .flatten()
-        })
-        .collect();
-
-    Ok(api_definitions)
-}
-
 /// 将单个 OpenAPI 操作转换为 API 定义
 ///
 /// # 功能说明
@@ -164,7 +222,7 @@ fn convert_operation_to_api_definition(
     method: &TemplateHttpMethod,
     operation: &Operation,
     namespace: &str,
-) -> Result<Option<ApiDefinition>, Box<dyn std::error::Error>> {
+) -> Result<ApiDefinition, Box<dyn std::error::Error>> {
     // 生成函数名: 方法名+Path路径
     let function_name = generate_function_name(method, path);
 
@@ -188,7 +246,7 @@ fn convert_operation_to_api_definition(
         path.to_string()
     };
 
-    Ok(Some(ApiDefinition {
+    Ok(ApiDefinition {
         function_name,
         desc: operation.description.clone(),
         method: method.clone(),
@@ -202,7 +260,7 @@ fn convert_operation_to_api_definition(
         has_form_data,
         has_path_variables,
         has_api_prefix,
-    }))
+    })
 }
 
 /// 生成函数名: 方法名 + 路径资源名（camelCase）

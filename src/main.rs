@@ -11,7 +11,6 @@ use generator_template::interface_template_generator::TemplateData;
 use openapiv3::OpenAPI;
 
 use crate::generator_template::{
-    service_controller_template_generator::ServiceControllerTemplateData,
     service_index_template_generator::ServiceIndexTemplateData,
 };
 
@@ -39,22 +38,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     generator_template::interface_template_generator::generate_typescript_types(template_data)?;
 
     // 4. 将 OpenAPI 规范转换为接口模板数据列表
-    let interface_template_data_list =
-        path_to_service_controller_template_data::openapi_to_service_controller_template_data_list(
-            &openapi_spec,
-            &config.namespace,
+    let service_controller_template_data_group_list = 
+        path_to_service_controller_template_data::openapi_to_service_controller_template_data_group_list(
+            &openapi_spec, 
+            "import request, { RequestOptions } from '@/utils/request';",
+            &config.namespace, 
+            "ts", 
+            "RequestOptions"
         )?;
-
-    let service_controller_template_data = ServiceControllerTemplateData {
-        namespace: config.namespace.clone(),
-        gen_type: "ts".to_string(),
-        request_import_statement: "import request, { RequestOptions } from '@/utils/request';"
-            .to_string(),
-        request_options_type: "RequestOptions".to_string(),
-        list: interface_template_data_list,
-    };
-
-    generator_template::service_controller_template_generator::generate_service_controller_typescript(service_controller_template_data)?;
+    for (tag, service_controller_template_data) in service_controller_template_data_group_list {
+        generator_template::service_controller_template_generator::generate_service_controller_typescript(&format!("{}.ts", tag), service_controller_template_data)?;
+    }
 
     // 5. 将 OpenAPI 规范转换为服务索引模板数据列表
     let service_index_template_data_list =
