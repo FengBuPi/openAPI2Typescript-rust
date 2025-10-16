@@ -1,5 +1,46 @@
 use heck::ToPascalCase;
 use openapiv3::{ReferenceOr, Schema};
+use pinyin::ToPinyin;
+
+// ============================================================================
+// 拼音转换工具函数
+// ============================================================================
+
+/// 将中文字符串转换为不带声调的拼音
+///
+/// # 参数
+/// * `input` - 输入的中文字符串
+///
+/// # 返回值
+/// * `String` - 转换后的拼音字符串
+///
+/// # 示例
+/// ```
+/// use crate::utles::chinese_to_pinyin;
+///
+/// let result = chinese_to_pinyin("标签");
+/// assert_eq!(result, "biaoqian");
+///
+/// let result = chinese_to_pinyin("配置-公共标签");
+/// assert_eq!(result, "peizhi-gonggongbiaoqian");
+/// ```
+pub fn chinese_to_pinyin(input: &str) -> String {
+    input
+        .chars()
+        .map(|c| {
+            if c.is_ascii() {
+                // 如果是ASCII字符，直接返回
+                c.to_string()
+            } else {
+                // 如果是中文字符，转换为拼音
+                c.to_pinyin()
+                    .map(|pinyin| pinyin.plain().to_string())
+                    .unwrap_or_else(|| c.to_string())
+            }
+        })
+        .collect::<Vec<String>>()
+        .join("")
+}
 
 // ============================================================================
 // 常量定义

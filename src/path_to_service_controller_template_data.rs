@@ -13,8 +13,8 @@ use crate::{
         },
     },
     utles::{
-        extract_type_name_from_ref, get_typescript_type_string, is_typescript_builtin_type,
-        needs_quotes_for_param_name,
+        chinese_to_pinyin, extract_type_name_from_ref, get_typescript_type_string,
+        is_typescript_builtin_type, needs_quotes_for_param_name,
     },
 };
 
@@ -44,11 +44,11 @@ pub fn openapi_to_service_controller_template_data_group_list(
 
     // 遍历所有操作
     for (path, method, operation) in openapi.operations() {
-        // 获取操作的 tag，如果没有则使用 "default"
+        // 获取操作的 tag，如果没有则使用 "default"，并将中文转换为拼音
         let tag = operation
             .tags
             .first()
-            .map(|t| t.clone())
+            .map(|t| chinese_to_pinyin(t))
             .unwrap_or_else(|| "default".to_string());
 
         // 尝试转换 HTTP 方法
