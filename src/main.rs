@@ -35,19 +35,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         list: template_data_list,
     };
 
-    generator_template::interface_template_generator::generate_typescript_types(template_data)?;
+    // 确保输出目录存在
+    std::fs::create_dir_all(&config.servers_path)?;
+    
+    // 生成类型定义文件到配置的目录
+    let types_file_path = format!("{}/types.d.ts", config.servers_path);
+    generator_template::interface_template_generator::generate_typescript_types(&types_file_path, template_data)?;
 
     // 4. 将 OpenAPI 规范转换为接口模板数据列表
     let service_controller_template_data_group_list = 
         path_to_service_controller_template_data::openapi_to_service_controller_template_data_group_list(
             &openapi_spec, 
-            "import request, { RequestOptions } from '@/utils/request';",
+            &config.request_lib_path,
             &config.namespace, 
             "ts", 
             "RequestOptions"
         )?;
+    
     for (tag, service_controller_template_data) in service_controller_template_data_group_list {
-        generator_template::service_controller_template_generator::generate_service_controller_typescript(&format!("{}.ts", tag), service_controller_template_data)?;
+        let file_path = format!("{}/{}.ts", config.servers_path, tag);
+        generator_template::service_controller_template_generator::generate_service_controller_typescript(&file_path, service_controller_template_data)?;
     }
 
     // 5. 将 OpenAPI 规范转换为服务索引模板数据列表
@@ -61,7 +68,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         list: service_index_template_data_list,
     };
 
+    // 生成服务索引文件到配置的目录
+    let service_index_file_path = format!("{}/service_index.ts", config.servers_path);
     generator_template::service_index_template_generator::generate_service_index_typescript(
+        &service_index_file_path,
         service_index_template_data,
     )?;
 

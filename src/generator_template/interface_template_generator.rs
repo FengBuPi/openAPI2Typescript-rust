@@ -105,6 +105,7 @@ pub struct TemplateData {
 }
 
 pub fn generate_typescript_types(
+    file_path: &str,
     template_data: TemplateData,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // 初始化 Tera 模板引擎
@@ -117,8 +118,8 @@ pub fn generate_typescript_types(
 
     // 渲染模板
     let rendered = tera.render("interface.tera", &context)?;
-    std::fs::write("types.d.ts", rendered)?;
-    println!("\n✅ 结果已保存到 types.d.ts 文件");
+    std::fs::write(file_path, rendered)?;
+    println!("\n✅ 结果已保存到 {file_path} 文件");
     Ok(())
 }
 

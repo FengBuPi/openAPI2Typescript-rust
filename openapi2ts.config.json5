@@ -1,23 +1,9 @@
 {
   "namespace": "API",
   "schemaPath": "./openapi.json",
-  "declareType": "interface"
-  // requestLibPath: "import request from './request';",
-  // schemaPath: './swagger.json',
-  // serversPath: './servers',
-  // hook: {
-  //   afterOpenApiDataInited: (openApiData: any) => {
-  //     console.log('afterOpenApiDataInited', openApiData);
-  //     return openApiData;
-  //   },
-  //   customFunctionName: (APIDataType: any) => {
-  //     console.log('customFunctionName', APIDataType);
-  //     return APIDataType;
-  //   },
-  //   customTypeName: (APIDataType: any) => {
-  //     console.log('customTypeName', APIDataType);
-  //     return APIDataType;
-  //   },
+  "declareType": "interface",
+  "serversPath": "./servers",
+  "requestLibPath": "import request, { RequestOptions } from '@/utils/request';"
   //   customClassName: (tagName: any) => {
   //     console.log('customClassName', tagName);
   //     return tagName;

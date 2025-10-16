@@ -54,22 +54,29 @@ pub fn openapi_to_service_controller_template_data_group_list(
         // 尝试转换 HTTP 方法
         let template_method = TemplateHttpMethod::from_string(method);
 
-        // 判断是否存在该 tag 组，不存在则创建
-        if !tag_groups.contains_key(&tag) {
-            tag_groups.insert(
-                tag,
-                ServiceControllerTemplateData {
-                    request_import_statement: request_import_statement.to_string(),
-                    namespace: namespace.to_string(),
-                    gen_type: gen_type.to_string(),
-                    request_options_type: request_options_type.to_string(),
-                    list: vec![],
-                },
-            );
-        } else {
-            let api_definition =
-                convert_operation_to_api_definition(path, &template_method, operation, namespace)?;
-            tag_groups.get_mut(&tag).unwrap().list.push(api_definition);
+        // 尝试转换操作为 API 定义
+        match convert_operation_to_api_definition(path, &template_method, operation, namespace) {
+            Ok(api_definition) => {
+                // 转换成功，添加到对应 tag 组
+                if !tag_groups.contains_key(&tag) {
+                    tag_groups.insert(
+                        tag.clone(),
+                        ServiceControllerTemplateData {
+                            request_import_statement: request_import_statement.to_string(),
+                            namespace: namespace.to_string(),
+                            gen_type: gen_type.to_string(),
+                            request_options_type: request_options_type.to_string(),
+                            list: vec![api_definition],
+                        },
+                    );
+                } else {
+                    tag_groups.get_mut(&tag).unwrap().list.push(api_definition);
+                }
+            }
+            Err(e) => {
+                eprintln!("警告: 跳过转换失败的操作 {} {}: {}", method, path, e);
+                continue;
+            }
         }
     }
     Ok(tag_groups)

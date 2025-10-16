@@ -63,6 +63,7 @@ pub struct ServiceIndexTemplateData {
 /// generate_service_index_typescript(template_data)?;
 /// ```
 pub fn generate_service_index_typescript(
+    file_path: &str,
     template_data: ServiceIndexTemplateData,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // 初始化 Tera 模板引擎
@@ -80,8 +81,8 @@ pub fn generate_service_index_typescript(
     let rendered = tera.render("serviceIndex.tera", &context)?;
 
     // 保存到文件
-    std::fs::write("service_index.ts", rendered)?;
-    println!("\n✅ 服务索引已保存到 service_index.ts 文件");
+    std::fs::write(file_path, rendered)?;
+    println!("\n✅ 服务索引已保存到 {file_path} 文件");
 
     Ok(())
 }
