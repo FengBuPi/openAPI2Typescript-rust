@@ -310,7 +310,7 @@ mod tests {
             list: template_data_list,
         };
 
-        generate_typescript_types(template_data)?;
+        generate_typescript_types("types.d.ts", template_data)?;
         Ok(())
     }
 }

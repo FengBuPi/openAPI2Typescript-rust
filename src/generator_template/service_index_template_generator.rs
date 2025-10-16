@@ -104,7 +104,7 @@ mod tests {
             }],
         };
 
-        generate_service_index_typescript(template_data)?;
+        generate_service_index_typescript("service_index.ts", template_data)?;
 
         // 验证文件是否生成
         let content = std::fs::read_to_string("service_index.ts")?;
@@ -141,7 +141,7 @@ mod tests {
             ],
         };
 
-        generate_service_index_typescript(template_data)?;
+        generate_service_index_typescript("service_index.ts", template_data)?;
 
         // 验证文件是否生成
         let content = std::fs::read_to_string("service_index.ts")?;
@@ -173,7 +173,7 @@ mod tests {
             list: vec![],
         };
 
-        generate_service_index_typescript(template_data)?;
+        generate_service_index_typescript("service_index.ts", template_data)?;
 
         // 验证文件是否生成（即使列表为空）
         let content = std::fs::read_to_string("service_index.ts")?;
