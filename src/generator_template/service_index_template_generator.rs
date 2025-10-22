@@ -27,7 +27,7 @@ pub struct ServiceIndexTemplateData {
 /// # 功能说明
 /// 根据模板数据生成 TypeScript 服务索引文件，用于统一导出所有服务控制器。
 /// 生成的文件会包含：
-/// - API 更新时间和唯一标识（用于缓存控制）
+/// - API 更新时间（用于缓存控制）
 /// - 所有服务控制器的 import 语句
 /// - 统一的 export default 对象
 ///
@@ -47,7 +47,6 @@ pub struct ServiceIndexTemplateData {
 ///
 /// let template_data = ServiceIndexTemplateData {
 ///     api_resource_modify_time: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-///     api_resource_id: "abc123".to_string(),
 ///     list: vec![
 ///         ServiceController {
 ///             controller_name: "userController".to_string(),
@@ -112,7 +111,6 @@ mod tests {
         assert!(content.contains("export default"));
         assert!(content.contains("userController,"));
         assert!(content.contains("API 更新时间：2025-10-15 01:00:00"));
-        assert!(content.contains("API 唯一标识：test_single_123"));
 
         Ok(())
     }
@@ -158,7 +156,7 @@ mod tests {
         assert!(content.contains("productController,"));
 
         // 验证元数据
-        assert!(content.contains("API 唯一标识：test_multi_456"));
+        assert!(content.contains("API 更新时间：2025-10-15 01:00:00"));
 
         Ok(())
     }
@@ -207,7 +205,6 @@ mod tests {
         // 测试序列化
         let json = serde_json::to_string(&template_data)?;
         assert!(json.contains("apiResourceModifyTime"));
-        assert!(json.contains("apiResourceId"));
         assert!(json.contains("controllerName"));
         assert!(json.contains("fileName"));
 

@@ -69,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // 生成服务索引文件到配置的目录
-    let service_index_file_path = format!("{}/service_index.ts", config.servers_path);
+    let service_index_file_path = format!("{}/index.ts", config.servers_path);
     generator_template::service_index_template_generator::generate_service_index_typescript(
         &service_index_file_path,
         service_index_template_data,
