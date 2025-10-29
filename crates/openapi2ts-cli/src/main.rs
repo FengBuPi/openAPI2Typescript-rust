@@ -1,9 +1,25 @@
 use chrono::Local;
 use openapi2ts_core::{
     Config, TemplateData, ServiceIndexTemplateData,
-    config, generator_template, path_to_service_controller_template_data,
+    generator_template, path_to_service_controller_template_data,
     path_to_service_index_template_data, schema_to_interface_template_data,
 };
+use openapiv3::OpenAPI;
+
+// 根据用配置中的 schema_path 判断如何获取 openapi.json 文件
+// 1. 网络请求获取 (仅在非 WASM 环境中支持)
+// 2. 本地文件获取
+pub async fn get_openapi_spec(config: &Config) -> Result<OpenAPI, Box<dyn std::error::Error>> {
+    if config.schema_path.starts_with("http") {
+            let response = reqwest::get(&config.schema_path).await?;
+            let openapi_spec: OpenAPI = response.json().await?;
+            Ok(openapi_spec)
+    } else {
+        let openapi_spec: OpenAPI =
+            serde_json::from_str(&std::fs::read_to_string(&config.schema_path)?)?;
+        Ok(openapi_spec)
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -13,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("配置加载成功: {:?}", config);
 
     // 2. 根据配置获取 OpenAPI 规范 结构体（支持网络请求和本地文件）
-    let openapi_spec: openapiv3::OpenAPI = config::get_openapi_spec(&config).await?;
+    let openapi_spec: openapiv3::OpenAPI = get_openapi_spec(&config).await?;
     println!("当前 OpenAPI 版本: {:?}", openapi_spec.openapi);
 
     // 3. 将 OpenAPI 规范转换为类型模板数据列表
