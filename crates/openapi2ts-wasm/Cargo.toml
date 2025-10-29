@@ -22,3 +22,4 @@ chrono.workspace = true
 serde_json.workspace = true
 openapiv3.workspace = true
 getrandom = { version = "0.2", features = ["js"] }
+serde.workspace = true
