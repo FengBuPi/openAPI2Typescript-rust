@@ -86,6 +86,26 @@ pub fn generate_service_index_typescript(
     Ok(())
 }
 
+/// 生成服务索引 TypeScript 代码字符串
+pub fn generate_service_index_typescript_string(
+    template_data: ServiceIndexTemplateData,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // 初始化 Tera 模板引擎
+    let tera = Tera::new("templates/**/*.tera")?;
+
+    // 创建上下文并添加数据
+    let mut context = Context::new();
+    context.insert(
+        "apiResourceModifyTime",
+        &template_data.api_resource_modify_time,
+    );
+    context.insert("list", &template_data.list);
+
+    // 渲染模板
+    let rendered = tera.render("serviceIndex.tera", &context)?;
+    Ok(rendered)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

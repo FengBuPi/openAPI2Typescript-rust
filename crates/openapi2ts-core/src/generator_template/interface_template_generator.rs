@@ -123,6 +123,22 @@ pub fn generate_typescript_types(
     Ok(())
 }
 
+pub fn generate_typescript_types_string(
+    template_data: TemplateData,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // 初始化 Tera 模板引擎
+    let tera = Tera::new("templates/**/*.tera")?;
+
+    // 创建上下文并添加数据
+    let mut context = Context::new();
+    context.insert("namespace", &template_data.namespace);
+    context.insert("list", &template_data.list);
+
+    // 渲染模板
+    let rendered = tera.render("interface.tera", &context)?;
+    Ok(rendered)
+}
+
 mod tests {
     use openapiv3::OpenAPI;
 

@@ -326,6 +326,29 @@ pub fn generate_service_controller_typescript(
     Ok(())
 }
 
+/// 生成服务控制器 TypeScript 代码字符串
+pub fn generate_service_controller_typescript_string(
+    template_data: ServiceControllerTemplateData,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // 初始化 Tera 模板引擎
+    let tera = Tera::new("templates/**/*.tera")?;
+
+    // 创建上下文并添加数据
+    let mut context = Context::new();
+    context.insert(
+        "requestImportStatement",
+        &template_data.request_import_statement,
+    );
+    context.insert("namespace", &template_data.namespace);
+    context.insert("gen_type", &template_data.gen_type);
+    context.insert("request_options_type", &template_data.request_options_type);
+    context.insert("list", &template_data.list);
+
+    // 渲染模板
+    let rendered = tera.render("service_controller.tera", &context)?;
+    Ok(rendered)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

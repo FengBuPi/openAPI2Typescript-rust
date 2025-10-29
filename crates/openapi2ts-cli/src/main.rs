@@ -1,17 +1,8 @@
-mod config;
-mod generator_template;
-mod path_to_service_controller_template_data;
-mod path_to_service_index_template_data;
-mod schema_to_interface_template_data;
-mod utles;
-
 use chrono::Local;
-use config::Config;
-use generator_template::interface_template_generator::TemplateData;
-use openapiv3::OpenAPI;
-
-use crate::generator_template::{
-    service_index_template_generator::ServiceIndexTemplateData,
+use openapi2ts_core::{
+    Config, TemplateData, ServiceIndexTemplateData,
+    config, generator_template, path_to_service_controller_template_data,
+    path_to_service_index_template_data, schema_to_interface_template_data,
 };
 
 #[tokio::main]
@@ -22,7 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("配置加载成功: {:?}", config);
 
     // 2. 根据配置获取 OpenAPI 规范 结构体（支持网络请求和本地文件）
-    let openapi_spec: OpenAPI = config::get_openapi_spec(&config).await?;
+    let openapi_spec: openapiv3::OpenAPI = config::get_openapi_spec(&config).await?;
     println!("当前 OpenAPI 版本: {:?}", openapi_spec.openapi);
 
     // 3. 将 OpenAPI 规范转换为类型模板数据列表
