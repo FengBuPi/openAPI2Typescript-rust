@@ -3,3 +3,4 @@ types.d.ts
 service_controller.ts
 service_index.ts
 servers/
+openapi.json
