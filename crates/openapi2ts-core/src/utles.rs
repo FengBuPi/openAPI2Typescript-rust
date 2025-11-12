@@ -247,20 +247,12 @@ pub fn needs_quotes_for_param_name(name: &str) -> bool {
 /// # 示例
 /// ```rust
 /// assert_eq!(extract_type_name_from_ref("#/components/schemas/User"), "User");
-/// assert_eq!(extract_type_name_from_ref("#/components/schemas/api.User"), "User");
+/// assert_eq!(extract_type_name_from_ref("#/components/schemas/api.User"), "ApiUser");
 /// assert_eq!(extract_type_name_from_ref("#/components/schemas/user_profile"), "UserProfile");
 /// ```
 pub fn extract_type_name_from_ref(ref_path: &str) -> String {
     // 从路径中提取最后一个部分作为类型名称
-    let raw_type_name = ref_path.split('/').last().unwrap();
-
-    // 如果包含点分割，则取最后一部分
-    let final_name = if raw_type_name.contains('.') {
-        raw_type_name.split('.').last().unwrap()
-    } else {
-        raw_type_name
-    };
-
+    let final_name = ref_path.split('/').last().unwrap();
     // 转换为 PascalCase
     final_name.to_pascal_case()
 }

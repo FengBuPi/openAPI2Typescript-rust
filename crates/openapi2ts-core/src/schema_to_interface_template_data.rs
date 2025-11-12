@@ -254,7 +254,7 @@ fn convert_schema_to_type_definition(
     schema_ref: &ReferenceOr<Schema>,
 ) -> Result<TypeDefinition, Box<dyn std::error::Error>> {
     // 生成类型名称（PascalCase 格式）
-    let type_name = schema_name.split('.').last().unwrap().to_pascal_case();
+    let type_name = extract_type_name_from_ref(schema_name);
 
     let type_definition = match schema_ref {
         // 处理内联定义的 Schema
