@@ -115,6 +115,10 @@ pub fn generate_typescript_types(
     let mut context = Context::new();
     context.insert("namespace", &template_data.namespace);
     context.insert("list", &template_data.list);
+    context.insert(
+        "time",
+        &chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+    );
 
     // 渲染模板
     let rendered = tera.render("interface.tera", &context)?;
@@ -133,6 +137,10 @@ pub fn generate_typescript_types_string(
     let mut context = Context::new();
     context.insert("namespace", &template_data.namespace);
     context.insert("list", &template_data.list);
+    context.insert(
+        "time",
+        &chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+    );
 
     // 渲染模板
     let rendered = tera.render("interface.tera", &context)?;

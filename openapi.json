@@ -14454,6 +14454,108 @@
         }
       }
     },
+    "/v1/content/relation/movie/add": {
+      "post": {
+        "security": [
+          {
+            "LoginCookie": []
+          }
+        ],
+        "description": "成片关联成片",
+        "tags": [
+          "内容（列表｜详情）"
+        ],
+        "summary": "成片关联成片",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/service.AddMovieMovieRelationReq"
+        },
+        "responses": {
+          "200": {
+            "description": "succ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content/relation/movie/del": {
+      "post": {
+        "security": [
+          {
+            "LoginCookie": []
+          }
+        ],
+        "description": "成片取消关联成片",
+        "tags": [
+          "内容（列表｜详情）"
+        ],
+        "summary": "成片取消关联成片",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/service.AddMovieMovieRelationReq"
+        },
+        "responses": {
+          "200": {
+            "description": "succ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content/relation/movie/list": {
+      "get": {
+        "security": [
+          {
+            "LoginCookie": []
+          }
+        ],
+        "description": "获取成片关联的成片列表",
+        "tags": [
+          "内容（列表｜详情）"
+        ],
+        "summary": "获取成片关联的成片列表",
+        "parameters": [
+          {
+            "name": "-",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "成片hash id",
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/service.GetMovieRelationMovieResp"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/content/search": {
       "post": {
         "description": "内容检索",
@@ -16802,7 +16904,7 @@
               "",
               "巨量千川",
               "小店随心投",
-              "巨量广告",
+              "巨量��告",
               "腾讯广告",
               "磁力金牛"
             ],
@@ -20216,22 +20318,6 @@
             }
           },
           {
-            "description": "创建结束时间，unix时间戳秒",
-            "name": "create_end",
-            "in": "query",
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "description": "创建开始时间，unix时间戳秒",
-            "name": "create_start",
-            "in": "query",
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
             "description": "项目hash id",
             "name": "id",
             "in": "query",
@@ -20252,7 +20338,9 @@
             "in": "query",
             "required": true,
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
             }
           },
           {
@@ -20260,30 +20348,6 @@
             "in": "query",
             "schema": {
               "type": "integer"
-            }
-          },
-          {
-            "x-enum-varnames": [
-              "DefaultStatus",
-              "NormalStatus",
-              "PostponeStatus",
-              "FinishedStatus",
-              "RiskStatus",
-              "ArchiveStatus"
-            ],
-            "description": "项目状态",
-            "name": "status",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "enum": [
-                1,
-                2,
-                3,
-                4,
-                5,
-                6
-              ]
             }
           }
         ],
@@ -20293,7 +20357,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/service.SearchProjectListResp"
+                  "$ref": "#/components/schemas/service.GetProjectListResp"
                 }
               }
             }
@@ -24982,6 +25046,17 @@
         "description": "请求主体",
         "required": true
       },
+      "service.AddMovieMovieRelationReq": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/service.AddMovieMovieRelationReq"
+            }
+          }
+        },
+        "description": "请求主体",
+        "required": true
+      },
       "dao.GetAccountStatListReq": {
         "content": {
           "application/json": {
@@ -27197,7 +27272,7 @@
         },
         "x-enum-descriptions": [
           "",
-          "不��用",
+          "不启用",
           "启用"
         ],
         "x-enum-varnames": [
@@ -33257,7 +33332,7 @@
             "type": "number"
           },
           "cpm_platform": {
-            "description": "平均千次展示费���",
+            "description": "平均千次展示费用",
             "type": "number"
           },
           "create_order_amount": {
@@ -35032,7 +35107,7 @@
             "type": "number"
           },
           "deep_convert_cnt": {
-            "description": "深度转化次数",
+            "description": "深度��化次数",
             "type": "number"
           },
           "deep_convert_cost": {
@@ -36532,7 +36607,7 @@
             "type": "string"
           },
           "platform_status": {
-            "description": "账号��态",
+            "description": "账号状态",
             "type": "string"
           },
           "stat": {
@@ -38263,7 +38338,7 @@
             "type": "number"
           },
           "qianchuan_author_first_order_roi30": {
-            "description": "抖音号首单���客30天累计支付roi",
+            "description": "抖音号首单新客30天累计支付roi",
             "type": "number"
           },
           "qianchuan_brand_first_order_cnt": {
@@ -40469,7 +40544,7 @@
             "type": "number"
           },
           "qianchuan_effective_view_cpa_platform": {
-            "description": "有效���播成本",
+            "description": "有效看播成本",
             "type": "number"
           },
           "qianchuan_estimated_commission": {
@@ -48048,6 +48123,18 @@
             "description": "净成交订单成本",
             "type": "number"
           },
+          "total_cpc_for_roi2": {
+            "description": "整体点击单价",
+            "type": "number"
+          },
+          "total_ecom_platform_subsidy_amount_for_roi2": {
+            "description": "电商平台补贴金额",
+            "type": "number"
+          },
+          "total_ecpm_for_roi2": {
+            "description": "整体千次展现费用",
+            "type": "number"
+          },
           "total_order_real_settle_amount_for_roi2_1h": {
             "description": "用户实际支付净成交金额",
             "type": "number"
@@ -48077,6 +48164,10 @@
             "type": "number"
           },
           "total_pay_order_gmv_for_roi2": {
+            "description": "整体成交金额",
+            "type": "number"
+          },
+          "total_pay_order_gmv_include_coupon_for_roi2": {
             "description": "整体成交金额",
             "type": "number"
           },
@@ -48137,8 +48228,16 @@
             "description": "整体转化率",
             "type": "number"
           },
+          "product_cpc_for_roi2": {
+            "description": "整体点击单价",
+            "type": "number"
+          },
           "product_cvr_rate_for_roi2": {
             "description": "整体点击率",
+            "type": "number"
+          },
+          "product_ecpm_for_roi2": {
+            "description": "整体千次展现费用",
             "type": "number"
           },
           "product_show_count_for_roi2": {
@@ -48155,6 +48254,10 @@
           },
           "total_cost_per_pay_order_settle_for_roi2_1h": {
             "description": "净成交订单成本",
+            "type": "number"
+          },
+          "total_ecom_platform_subsidy_amount_for_roi2": {
+            "description": "电商平台补贴金额",
             "type": "number"
           },
           "total_order_real_settle_amount_for_roi2_1h": {
@@ -48186,6 +48289,10 @@
             "type": "number"
           },
           "total_pay_order_gmv_for_roi2": {
+            "description": "用户实际支付金额",
+            "type": "number"
+          },
+          "total_pay_order_gmv_include_coupon_for_roi2": {
             "description": "整体成交金额",
             "type": "number"
           },
@@ -49024,6 +49131,26 @@
           }
         }
       },
+      "service.AddMovieMovieRelationReq": {
+        "type": "object",
+        "required": [
+          "movie_id",
+          "target_movie_ids"
+        ],
+        "properties": {
+          "movie_id": {
+            "description": "源成片hash id",
+            "type": "string"
+          },
+          "target_movie_ids": {
+            "description": "目标成片hash id",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "service.AddMovieRelationReq": {
         "type": "object",
         "required": [
@@ -49098,7 +49225,7 @@
         ],
         "properties": {
           "access_times_limit": {
-            "description": "访问次数限制",
+            "description": "��问次数限制",
             "type": "integer"
           },
           "can_annotation": {
@@ -49759,6 +49886,10 @@
           "open_date": {
             "description": "公开日期，unix时间戳秒",
             "type": "integer"
+          },
+          "project_id": {
+            "description": "项目hash id",
+            "type": "string"
           },
           "title": {
             "type": "string"
@@ -52075,7 +52206,7 @@
         ],
         "properties": {
           "catalog": {
-            "description": "内容类型：video（视频）、vcollection（合集）��audio（音频）、image（图片）、script（脚本）、doc（文案）",
+            "description": "内容类型：video（视频）、vcollection（合集）、audio（音频）、image（图片）、script（脚本）、doc（文案）",
             "type": "string"
           },
           "category_id": {
@@ -52315,6 +52446,22 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/service.PlatformLabelStatInfo"
+            }
+          }
+        }
+      },
+      "service.GetMovieRelationMovieResp": {
+        "type": "object",
+        "properties": {
+          "movie_count": {
+            "description": "关联成片数量",
+            "type": "integer"
+          },
+          "movies": {
+            "description": "有查看权限的成片列表",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/service.ContentInfo"
             }
           }
         }
@@ -54476,7 +54623,7 @@
             }
           },
           "status": {
-            "description": "项目状态：1 暂无、2 正常���3 延期、4 完成、5 风险、6 归档",
+            "description": "项目状态：1 暂无、2 正常、3 延期、4 完成、5 风险、6 归档",
             "allOf": [
               {
                 "$ref": "#/components/schemas/constant.ProjectStatus"
@@ -55704,7 +55851,7 @@
             "type": "string"
           },
           "name": {
-            "description": "搜索视图名称",
+            "description": "搜索���图名称",
             "type": "string"
           },
           "type": {
@@ -55821,7 +55968,7 @@
             }
           },
           "sort_by": {
-            "description": "排序字段：-id（最新发布）、-view_member_count（最多查���人数）、-download_member_count（最多下载人数）、-today_cost（今日消耗）、",
+            "description": "排序字段：-id（最新发布）、-view_member_count（最多查看人数）、-download_member_count（最多下载人数）、-today_cost（今日消耗）、",
             "type": "string"
           },
           "status_id": {
@@ -56566,7 +56713,7 @@
             "type": "integer"
           },
           "end_time": {
-            "description": "结束时间，unix时间戳秒",
+            "description": "结束时间，unix时间戳��",
             "type": "integer"
           },
           "external_action": {
@@ -57033,7 +57180,7 @@
             "type": "integer"
           },
           "retain_1": {
-            "description": "汇总行需要计算平均值的字段列表。后端自用字段",
+            "description": "汇总行需要计算平均值的字段列表。后端自��字段",
             "type": "array",
             "items": {
               "type": "string"

@@ -1,5 +1,6 @@
 // @ts-ignore
 /* eslint-disable */
+// creatTime: {{ time }}
 declare namespace {{ namespace }} {
   {%- for type in list %}
       {%- if type.desc %}
