@@ -9,14 +9,13 @@ use openapiv3::OpenAPI;
 // 根据用配置中的 schema_path 判断如何获取 openapi.json 文件
 // 1. 网络请求获取 (仅在非 WASM 环境中支持)
 // 2. 本地文件获取
-pub async fn get_openapi_spec(config: &Config) -> Result<OpenAPI, Box<dyn std::error::Error>> {
-    if config.schema_path.starts_with("http") {
-        let response = reqwest::get(&config.schema_path).await?;
+pub async fn get_openapi_spec(schema_path: &str) -> Result<OpenAPI, Box<dyn std::error::Error>> {
+    if schema_path.starts_with("http") {
+        let response = reqwest::get(schema_path).await?;
         let openapi_spec: OpenAPI = response.json().await?;
         Ok(openapi_spec)
     } else {
-        let openapi_spec: OpenAPI =
-            serde_json::from_str(&std::fs::read_to_string(&config.schema_path)?)?;
+        let openapi_spec: OpenAPI = serde_json::from_str(&std::fs::read_to_string(schema_path)?)?;
         Ok(openapi_spec)
     }
 }
@@ -29,10 +28,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("配置加载成功: {:?}", config);
 
     // 2. 根据配置获取 OpenAPI 规范 结构体（支持网络请求和本地文件）
-    let openapi_spec: openapiv3::OpenAPI = get_openapi_spec(&config).await?;
+    let openapi_spec: openapiv3::OpenAPI = get_openapi_spec(&config.schema_path).await?;
     println!("当前 OpenAPI 版本: {:?}", openapi_spec.openapi);
 
-    // 3. 将 OpenAPI 规范转换为类型模板数据列表
+    // 将 OpenAPI 规范转换为类型模板数据列表 ------------------------------------------------------------
     let template_data_list =
         schema_to_interface_template_data::openapi_to_interface_template_data_list(&openapi_spec)?;
 
@@ -52,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         template_data,
     )?;
 
-    // 4. 将 OpenAPI 规范转换为接口模板数据列表
+    // 将 OpenAPI 规范转换为接口模板数据列表 ------------------------------------------------------------
     // let service_controller_template_data_group_list =
     //     path_to_service_controller_template_data::openapi_to_service_controller_template_data_group_list(
     //         &openapi_spec,
@@ -67,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     generator_template::service_controller_template_generator::generate_service_controller_typescript(&file_path, service_controller_template_data)?;
     // }
 
-    // 5. 将 OpenAPI 规范转换为服务索引模板数据列表
+    // 将 OpenAPI 规范转换为服务索引模板数据列表 ------------------------------------------------------------
     // let service_index_template_data_list =
     //     path_to_service_index_template_data::openapi_to_service_index_template_data_list(
     //         &openapi_spec,
