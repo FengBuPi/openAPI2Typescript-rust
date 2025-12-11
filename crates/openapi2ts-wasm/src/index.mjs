@@ -1,7 +1,7 @@
 import { readFileSync, mkdirSync } from 'fs';
 import { writeFileSync as fsWriteFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import path, { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import https from 'https';
 
 // 导入WASM模块
@@ -12,7 +12,7 @@ global.readFileSync = (path) => {
   try {
     return readFileSync(path, 'utf8');
   } catch (e) {
-    throw new Error(`Failed to read file ${path}: ${e.message}`);
+    throw new Error(`读取文件失败: ${path} 失败原因: ${e.message}`);
   }
 };
 
@@ -26,7 +26,7 @@ global.writeFileSync = (path, content) => {
     console.log(`文件已保存到: ${path}`);
   } catch (e) {
     console.error(`写入文件失败: ${e.message}`);
-    throw new Error(`Failed to write file ${path}: ${e.message}`);
+    throw new Error(`写入文件失败: ${path}: ${e.message}`);
   }
 };
 
@@ -44,14 +44,34 @@ global.fetchJson = async (url) => {
           const json = JSON.parse(data);
           resolve(json);
         } catch (e) {
-          reject(new Error(`Failed to parse JSON: ${e.message}`));
+          reject(new Error(`解析JSON失败: ${e.message}`));
         }
       });
     }).on('error', (err) => {
-      reject(new Error(`HTTP request failed: ${err.message}`));
+      reject(new Error(`HTTP请求失败: ${err.message}`));
     });
   });
 };
+
+async function getUserConfig() {
+  let userConfig;
+  try {
+    // 从cwd获取配置文件
+    const configPath = path.resolve(process.cwd(), 'openapi2ts.config.js');
+    userConfig = (await import(configPath)).default;
+
+    // 将配置文件中的相对路径转换为绝对路径
+    userConfig = {
+      ...userConfig,
+      schemaPath: path.resolve(path.dirname(configPath), userConfig.schemaPath),
+      serversPath: path.resolve(path.dirname(configPath), userConfig.serversPath),
+    };
+  } catch (error) {
+    console.error('读取openapi2ts.config.js配置失败:', error);
+    process.exit(1);
+  }
+  return userConfig;
+}
 
 async function main() {
   const __filename = fileURLToPath(import.meta.url);
@@ -61,21 +81,20 @@ async function main() {
 
   await init({ module_or_path: wasmBytes });
 
-  const configPath = pathToFileURL(join(__dirname, '../../openapi2ts.config.js')).href;
-  const userConfig = (await import(configPath)).default;
+  const userConfig = await getUserConfig();
 
-  const config = {
+  const wasmConfig = {
     namespace: userConfig.namespace,
     schema_path: userConfig.schemaPath,
     declare_type: userConfig.declareType,
     servers_path: userConfig.serversPath,
     request_lib_path: userConfig.requestLibPath,
-    custom_class_name: userConfig.customClassName ?? ((name) => name),
+    custom_class_name: userConfig.customClassName,
   };
 
   try {
     console.log('开始转换OpenAPI到TypeScript...');
-    const generatedCode = await openapi2ts(config);
+    const generatedCode = await openapi2ts(wasmConfig);
     if (generatedCode) {
       console.log('转换成功');
     } else {

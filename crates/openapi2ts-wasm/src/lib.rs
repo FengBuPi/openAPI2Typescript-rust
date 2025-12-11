@@ -36,7 +36,7 @@ pub async fn get_openapi_content(schema_path: &str) -> Result<OpenAPI, JsValue> 
         // 调用Node.js提供的函数读取本地文件
         let file_content = read_file_sync(schema_path);
         let openapi_content: OpenAPI = serde_json::from_str(&file_content)
-            .map_err(|e| JsValue::from_str(&format!("JSON parse error: {}", e)))?;
+            .map_err(|e| JsValue::from_str(&format!("JSON解析失败: {}", e)))?;
         Ok(openapi_content)
     }
 }
