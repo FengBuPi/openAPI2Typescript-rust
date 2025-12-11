@@ -4,7 +4,7 @@ use tera::{Context, Tera};
 // 内嵌模板内容
 const TEMPLATE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../templates/interface.tera"
+    "/templates/interface.tera"
 ));
 
 /// 属性值 - 只用于对象类型
