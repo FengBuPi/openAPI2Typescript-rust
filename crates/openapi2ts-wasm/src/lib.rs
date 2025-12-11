@@ -1,23 +1,23 @@
-use js_sys::{Function, Reflect};
-use openapi2ts_core::{
-    generator_template, path_to_service_controller_template_data,
-    path_to_service_index_template_data, schema_to_interface_template_data, Config,
-    ServiceIndexTemplateData, TemplateData,
-};
+use openapi2ts_core::{generator_template, schema_to_interface_template_data, TemplateData};
 use openapiv3::OpenAPI;
-use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use web_sys::console;
 
-// 根据用配置中的 schema_path 判断如何获取 openapi.json 文件
-// 1. 网络请求获取 (仅在非 WASM 环境中支持)
-// 2. 本地文件获取
-// #[allow(dead_code)]
-// pub async fn get_openapi_spec(config: &Config) -> Result<OpenAPI, Box<dyn std::error::Error>> {
-//     if config.schema_path.starts_with("http") {
-//     } else {
-//     }
-// }
+mod wasm_config;
+use crate::wasm_config::WasmConfig;
+
+// JavaScript/Node.js提供的函数
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_name = "readFileSync")]
+    fn read_file_sync(path: &str) -> String;
+
+    #[wasm_bindgen(js_name = "fetchJson")]
+    async fn fetch_json(url: &str) -> JsValue;
+
+    #[wasm_bindgen(js_name = "writeFileSync")]
+    fn write_file_sync(path: &str, content: &str);
+}
 
 // 当wasm模块被加载时调用
 #[wasm_bindgen(start)]
@@ -26,95 +26,50 @@ pub fn main() {
     console::log_1(&"OpenAPI2TypeScript WASM模块已加载".into());
 }
 
-// 导出配置结构体到JavaScript
+pub async fn get_openapi_content(schema_path: &str) -> Result<OpenAPI, JsValue> {
+    if schema_path.starts_with("http") {
+        // 调用JavaScript/Node.js的fetch函数
+        let json = fetch_json(schema_path).await;
+        let openapi_content: OpenAPI = serde_wasm_bindgen::from_value(json)?;
+        Ok(openapi_content)
+    } else {
+        // 调用Node.js提供的函数读取本地文件
+        let file_content = read_file_sync(schema_path);
+        let openapi_content: OpenAPI = serde_json::from_str(&file_content)
+            .map_err(|e| JsValue::from_str(&format!("JSON parse error: {}", e)))?;
+        Ok(openapi_content)
+    }
+}
+
 #[wasm_bindgen]
-#[derive(Serialize, Deserialize, Debug)]
-pub struct WasmConfigData {
-    namespace: String,
-    schema_path: String,
-    declare_type: String,
-    servers_path: String,
-    request_lib_path: String,
+// 暴露给前端的main函数，返回是否成功
+pub async fn openapi2ts(js_config: &JsValue) -> Result<bool, JsValue> {
+    let config: WasmConfig = WasmConfig::from_js_object(js_config);
+
+    let openapi_content: openapiv3::OpenAPI = get_openapi_content(&config.schema_path).await?;
+    console::log_1(&format!("当前 OpenAPI 版本: {:?}", openapi_content.openapi).into());
+
+    // 将 OpenAPI 规范转换为类型模板数据列表
+    let template_data_list =
+        schema_to_interface_template_data::openapi_to_interface_template_data_list(
+            &openapi_content,
+        )
+        .map_err(|e| JsValue::from_str(&format!("转换模板数据失败: {:?}", e)))?;
+
+    let template_data = TemplateData {
+        namespace: config.namespace.clone(),
+        declare_type: config.declare_type.clone(),
+        list: template_data_list,
+    };
+
+    // 生成类型定义文件到配置的目录
+    let types_file_path = format!("{}/types.d.ts", config.servers_path);
+    let rendered =
+        generator_template::interface_template_generator::generate_typescript_types_string(
+            template_data,
+        )
+        .unwrap();
+    write_file_sync(&types_file_path, &rendered);
+
+    Ok(true)
 }
-
-#[allow(dead_code)]
-pub struct WasmConfig {
-    data: WasmConfigData,
-    custom_type_name: Option<Function>,
-    custom_file_names: Option<Function>,
-}
-
-impl WasmConfig {
-    /// 从 JsValue 创建 WasmConfig
-    fn from_js_value(js_config: JsValue) -> Self {
-        let obj = js_sys::Object::from(js_config.clone());
-
-        // 提取基本配置数据
-        let data: WasmConfigData =
-            serde_wasm_bindgen::from_value(js_config).unwrap_or_else(|_| WasmConfigData {
-                namespace: "API".to_string(),
-                schema_path: "./openapi.json".to_string(),
-                declare_type: "interface".to_string(),
-                servers_path: "./servers".to_string(),
-                request_lib_path: "import request, { RequestOptions } from '@/utils/request';"
-                    .to_string(),
-            });
-
-        // 提取 custom_type_name 函数（如果存在）
-        let custom_type_name = Reflect::get(&obj, &"custom_type_name".into())
-            .ok()
-            .and_then(|val| val.dyn_into::<Function>().ok());
-
-        // 提取 custom_file_names 函数（如果存在）
-        let custom_file_names = Reflect::get(&obj, &"custom_file_names".into())
-            .ok()
-            .and_then(|val| val.dyn_into::<Function>().ok());
-
-        WasmConfig {
-            data,
-            custom_type_name,
-            custom_file_names,
-        }
-    }
-
-    /// 调用 custom_type_name 函数，如果存在
-    pub fn call_custom_type_name(&self, input: &str) -> String {
-        if let Some(ref func) = self.custom_type_name {
-            if let Ok(result) = func.call1(&wasm_bindgen::JsValue::NULL, &JsValue::from_str(input))
-            {
-                if let Some(s) = result.as_string() {
-                    return s;
-                }
-            }
-        }
-        input.to_string()
-    }
-
-    /// 调用 custom_file_names 函数，如果存在
-    pub fn call_custom_file_names(&self, arg1: &str, arg2: &str, arg3: &str) -> String {
-        if let Some(ref func) = self.custom_file_names {
-            if let Ok(result) = func.call3(
-                &wasm_bindgen::JsValue::NULL,
-                &JsValue::from_str(arg1),
-                &JsValue::from_str(arg2),
-                &JsValue::from_str(arg3),
-            ) {
-                if let Some(s) = result.as_string() {
-                    return s;
-                }
-            }
-        }
-        format!("{}-{}-{}", arg1, arg2, arg3)
-    }
-}
-
-// 从 JS 对象创建配置并返回配置的内部 ID
-// 这个函数用于测试和演示如何在 Rust 中调用 JS 传递进来的函数
-// #[wasm_bindgen]
-// pub fn test_call_js_functions(js_config: JsValue) -> String {
-//     let config = WasmConfig::from_js_value(js_config);
-
-//     // 测试调用 JS 传入的函数
-//     let test_result = config.call_custom_type_name("test_input");
-//     format!("JS函数返回: {}", test_result)
-// }

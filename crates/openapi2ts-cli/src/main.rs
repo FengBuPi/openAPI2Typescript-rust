@@ -9,7 +9,7 @@ use openapiv3::OpenAPI;
 // 根据用配置中的 schema_path 判断如何获取 openapi.json 文件
 // 1. 网络请求获取 (仅在非 WASM 环境中支持)
 // 2. 本地文件获取
-pub async fn get_openapi_spec(schema_path: &str) -> Result<OpenAPI, Box<dyn std::error::Error>> {
+pub async fn get_openapi_content(schema_path: &str) -> Result<OpenAPI, Box<dyn std::error::Error>> {
     if schema_path.starts_with("http") {
         let response = reqwest::get(schema_path).await?;
         let openapi_spec: OpenAPI = response.json().await?;
@@ -28,12 +28,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("配置加载成功: {:?}", config);
 
     // 2. 根据配置获取 OpenAPI 规范 结构体（支持网络请求和本地文件）
-    let openapi_spec: openapiv3::OpenAPI = get_openapi_spec(&config.schema_path).await?;
-    println!("当前 OpenAPI 版本: {:?}", openapi_spec.openapi);
+    let openapi_content: openapiv3::OpenAPI = get_openapi_content(&config.schema_path).await?;
+    println!("当前 OpenAPI 版本: {:?}", openapi_content.openapi);
 
     // 将 OpenAPI 规范转换为类型模板数据列表 ------------------------------------------------------------
     let template_data_list =
-        schema_to_interface_template_data::openapi_to_interface_template_data_list(&openapi_spec)?;
+        schema_to_interface_template_data::openapi_to_interface_template_data_list(
+            &openapi_content,
+        )?;
 
     let template_data = TemplateData {
         namespace: config.namespace.clone(),
@@ -46,10 +48,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 生成类型定义文件到配置的目录
     let types_file_path = format!("{}/types.d.ts", config.servers_path);
-    generator_template::interface_template_generator::generate_typescript_types(
+    let rendered = generator_template::interface_template_generator::generate_typescript_types(
         &types_file_path,
         template_data,
     )?;
+    std::fs::write(&types_file_path, rendered)?;
+    println!("\n✅ 结果已保存到 {types_file_path} 文件");
 
     // 将 OpenAPI 规范转换为接口模板数据列表 ------------------------------------------------------------
     // let service_controller_template_data_group_list =

@@ -1,6 +1,12 @@
 use serde::{Deserialize, Serialize};
 use tera::{Context, Tera};
 
+// 内嵌模板内容
+const TEMPLATE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../templates/interface.tera"
+));
+
 /// 属性值 - 只用于对象类型
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Property {
@@ -107,28 +113,6 @@ pub struct TemplateData {
 pub fn generate_typescript_types(
     file_path: &str,
     template_data: TemplateData,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // 初始化 Tera 模板引擎
-    let tera = Tera::new("templates/**/*.tera")?;
-
-    // 创建上下文并添加数据
-    let mut context = Context::new();
-    context.insert("namespace", &template_data.namespace);
-    context.insert("list", &template_data.list);
-    context.insert(
-        "time",
-        &chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-    );
-
-    // 渲染模板
-    let rendered = tera.render("interface.tera", &context)?;
-    std::fs::write(file_path, rendered)?;
-    println!("\n✅ 结果已保存到 {file_path} 文件");
-    Ok(())
-}
-
-pub fn generate_typescript_types_string(
-    template_data: TemplateData,
 ) -> Result<String, Box<dyn std::error::Error>> {
     // 初始化 Tera 模板引擎
     let tera = Tera::new("templates/**/*.tera")?;
@@ -144,6 +128,31 @@ pub fn generate_typescript_types_string(
 
     // 渲染模板
     let rendered = tera.render("interface.tera", &context)?;
+
+    Ok(rendered)
+}
+
+pub fn generate_typescript_types_string(
+    template_data: TemplateData,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // 初始化 Tera 模板引擎
+    let mut tera = Tera::default();
+    tera.add_raw_template("interface.tera", TEMPLATE)?;
+
+    // 创建上下文并添加数据
+    let mut context = Context::new();
+    context.insert("namespace", &template_data.namespace);
+    context.insert("list", &template_data.list);
+    context.insert(
+        "time",
+        &chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+    );
+
+    // 渲染模板
+    let rendered = tera.render("interface.tera", &context)?;
+
+    // 使用one_off方法渲染模板
+    // let rendered = Tera::one_off(TEMPLATE, &context, false)?;
     Ok(rendered)
 }
 
