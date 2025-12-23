@@ -1,10 +1,133 @@
 # openAPI2Typescript-rust
-openapi格式接口文档转成typescript小工具
 
-wasm-pack build --target nodejs --out-dir npm/pkg --release
+将 OpenAPI（或 Swagger v2）接口文档转换为 TypeScript 类型定义与请求代码的小工具
 
-cargo build --release --bin openapi2ts && \
-mkdir -p dist/openapi2ts-macos-x86_64-v0.1.0 && \
-cp target/release/openapi2ts dist/openapi2ts-macos-x86_64-v0.1.0/ && \
-[ -f openapi2ts.config.json5 ] && cp openapi2ts.config.json5 dist/openapi2ts-macos-x86_64-v0.1.0/openapi2ts.config.json5.example || true && \
-cd dist && tar -czf openapi2ts-macos-x86_64-v0.1.0.tar.gz openapi2ts-macos-x86_64-v0.1.0 && cd ..
+本仓库包含：
+
+- **Rust Core**：核心生成逻辑（crate：`openapi2ts-core`）
+- **CLI**：命令行工具（bin：`openapi2ts`）
+- **WASM**：可在 Node.js 中使用的 wasm 模块（crate：`openapi2ts-wasm`，npm 包目录：`crates/openapi2ts-wasm/npm`）
+
+## 依赖环境
+
+- **Rust**（建议使用最新 stable）
+- **wasm-pack**（用于构建 wasm）
+- **Node.js**（建议 18+）
+- **pnpm**（用于 `test/` 目录安装依赖；也可以用 npm/yarn 自行替换）
+
+## 使用 `./build.sh` 编译
+
+项目根目录提供了统一构建脚本 `build.sh`：
+
+```bash
+./build.sh --all
+```
+
+可选参数：
+
+- **`--all`**：构建所有组件（默认行为）
+- **`--cli`**：仅构建 CLI
+- **`--wasm`**：仅构建 WASM
+
+构建产物：
+
+- **CLI**：`./target/release/openapi2ts`
+- **WASM（nodejs target）**：`./crates/openapi2ts-wasm/npm/pkg/`
+
+如果遇到权限问题先执行：
+
+```bash
+chmod +x ./build.sh
+```
+
+## 在 `test/` 目录测试 WASM
+
+`test/` 目录通过本地依赖的方式引用 wasm npm 包：
+
+- `test/package.json` 依赖 `openapi2ts-wasm: file:../crates/openapi2ts-wasm/npm`
+
+注意：为了避免把本地测试用的 OpenAPI 文件与配置提交到仓库，以下文件在 `.gitignore` 中被忽略：
+
+- `test/openapi.json`
+- `test/openapi2ts.config.js`
+- `test/servers/`
+
+### 1) 构建 wasm
+
+在项目根目录运行：
+
+```bash
+./build.sh --wasm
+```
+
+### 2) 安装 `test/` 依赖
+
+```bash
+cd test
+pnpm install
+```
+
+### 3) 准备测试配置与 OpenAPI 文件
+
+在 `test/` 目录创建：
+
+- `openapi.json`：你的 OpenAPI v3 JSON（或 swagger v2 JSON）
+- `openapi2ts.config.js`：配置文件（可从 `openapi2ts.config.js.example` 拷贝修改）
+
+示例（从模板拷贝）：
+
+```bash
+cp ./openapi2ts.config.js.example ./openapi2ts.config.js
+```
+
+### 4) 运行 wasm 转换
+
+在 `test/` 目录执行（Node ESM）：
+
+```bash
+npx openapi2ts-wasm
+```
+
+成功后会在 `serversPath` 对应的目录（例如 `./servers`）输出：
+
+- `types.d.ts`
+- `index.ts`
+- 各 tag 对应的 `*.ts` controller 文件
+
+## 参与贡献（Contributing）
+
+欢迎提交 Issue / PR，一起把工具打磨得更好。
+
+### 开发流程建议
+
+- **Fork** 本仓库并新建分支：`feat/xxx`、`fix/xxx`、`chore/xxx`
+- 尽量保持 PR **小而专注**：一个 PR 解决一个问题
+- 提交前确保本地检查通过
+
+### 本地检查（建议）
+
+在仓库根目录：
+
+```bash
+cargo fmt
+cargo clippy --all-targets --all-features
+cargo test
+```
+
+如涉及 wasm/npm 侧改动，请同时验证：
+
+```bash
+./build.sh --wasm
+```
+
+并按上文在 `test/` 目录跑一次 wasm 调用。
+
+### 提交信息与代码风格
+
+- 提交信息建议使用清晰的动词开头，例如：`feat: ...` / `fix: ...` / `chore: ...`
+- Rust 代码以 `cargo fmt` 结果为准
+
+### 反馈与需求
+
+- **Bug**：请提供复现步骤、输入的 OpenAPI（可脱敏）、以及报错日志
+- **新功能**：请描述使用场景、期望的输出与兼容性要求
