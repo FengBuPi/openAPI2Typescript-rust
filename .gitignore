@@ -1,0 +1,10 @@
+target
+types.d.ts
+service_controller.ts
+service_index.ts
+servers/
+openapi.json
+openapi2ts.config.js
+openapi2ts.config.json5
+node_modules/
+crates/openapi2ts-wasm/pkg/

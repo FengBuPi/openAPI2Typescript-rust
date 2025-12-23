@@ -1,0 +1,74 @@
+// @ts-ignore
+/* eslint-disable */
+// 该文件请使用 pnpm gen:api 运行生成
+// 如果需要扩展类型请在同级目录下的 api-extend.d.ts 文件进行扩展
+// generateTime: {{ time }}
+declare namespace {{ namespace }} {
+  {%- for type in list %}
+      {%- if type.desc %}
+        /** {{ type.desc }} */
+      {%- endif %}
+    
+    {#- 使用serde的tag功能来匹配不同类型 -#}
+    {%- if type.type_kind == "object" %}
+      {#- 对象类型渲染 -#}
+      {%- if type.object_type_template == "interface" %}
+        interface {{ type.type_name }} {
+          {%- for prop in type.props %}
+            {%- if prop.desc %}
+              /** {{ prop.desc }} */
+            {%- endif %}
+            {%- if prop.is_required %}
+              {% if prop.needsQuotes -%}'{% endif -%}{{ prop.key }}{% if prop.needsQuotes -%}'{% endif -%}: {{ prop.value }};
+            {%- else %}
+              {% if prop.needsQuotes -%}'{% endif -%}{{ prop.key }}{% if prop.needsQuotes -%}'{% endif -%}?: {{ prop.value }};
+            {%- endif %}
+          {%- endfor %}
+        }
+      {%- elif type.object_type_template == "type" %}
+        type {{ type.type_name }} = {
+          {%- for prop in type.props %}
+            {%- if prop.desc %}
+              /** {{ prop.desc }} */
+            {%- endif %}
+            {% if prop.needsQuotes -%}'{% endif -%}{{ prop.key }}{% if prop.needsQuotes -%}'{% endif -%}: {{ prop.value }};
+          {%- endfor %}
+        };
+      {%- endif %}
+        
+    {%- elif type.type_kind == "enum" %}
+      {#- 枚举类型渲染 -#}
+      {%- if type.enum_type_template == "enum" %}
+        enum {{ type.type_name }} {
+          {%- for value in type.values %}
+            {%- if value.key %}
+              {{ value.key }} = {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %},
+            {%- else %}
+              VALUE_{{ loop.index }} = {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %},
+            {%- endif %}
+          {%- endfor %}
+        }
+      {%- elif type.enum_type_template == "const_as_enum" %}
+        const {{ type.type_name }}: {
+          {%- for value in type.values %}
+            {%- if value.key %}
+              readonly {{ value.key }}: {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %},
+            {%- else %}
+              readonly VALUE_{{ loop.index }}: {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %},
+            {%- endif %}
+          {%- endfor %}
+        };
+        type {{ type.type_name }} = keyof typeof {{ type.type_name }};
+      {%- elif type.enum_type_template == "union" %}
+        type {{ type.type_name }} = 
+          {%- for value in type.values %}
+            {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %}{%- if not loop.last %} | {%- endif %}
+          {%- endfor %};
+      {%- endif %}
+        
+    {%- elif type.type_kind == "basic" %}
+      {#- 基本类型渲染 -#}
+      type {{ type.type_name }} = {{ type.basic_type }};
+    {%- endif %}
+  {%- endfor %}
+}

@@ -1,0 +1,16 @@
+// @ts-ignore
+/* eslint-disable */
+// 该文件请使用 pnpm gen:api 运行生成
+// 如果需要扩展类型请在同级目录下的 api-extend.d.ts 文件进行扩展
+// generateTime: {{ time }}
+{% for api in list -%}
+import * as {{ api.controllerName }} from '{{ api.fileName }}'
+{% endfor -%}
+
+
+export default {
+  {% for api in list -%}
+  {{ api.controllerName }},
+  {% endfor -%}
+}
+

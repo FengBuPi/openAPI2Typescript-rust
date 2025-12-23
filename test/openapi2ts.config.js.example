@@ -1,0 +1,12 @@
+export default {
+  namespace: "API",
+  schemaPath: "./openapi.json ",
+  declareType: "interface",
+  serversPath: "./servers",
+  requestLibPath: "import axios from 'axios';",
+  isSwagger: true,
+  customClassName: (tagName) => {
+    console.log("customClassName", tagName);
+    return tagName;
+  },
+};

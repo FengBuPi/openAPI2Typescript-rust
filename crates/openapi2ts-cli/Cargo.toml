@@ -1,0 +1,21 @@
+[package]
+name = "openapi2ts-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Command-line tool for OpenAPI to TypeScript code generation"
+
+[[bin]]
+name = "openapi2ts"
+path = "src/main.rs"
+
+[dependencies]
+openapi2ts-core = { path = "../openapi2ts-core" }
+tokio.workspace = true
+reqwest.workspace = true
+chrono.workspace = true
+json5.workspace = true
+openapiv3.workspace = true
+serde_json.workspace = true

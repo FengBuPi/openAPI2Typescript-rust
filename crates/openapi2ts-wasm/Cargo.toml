@@ -1,0 +1,25 @@
+[package]
+name = "openapi2ts-wasm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "WebAssembly bindings for OpenAPI to TypeScript code generation"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+openapi2ts-core = { path = "../openapi2ts-core" }
+wasm-bindgen.workspace = true
+js-sys.workspace = true
+web-sys.workspace = true
+wasm-bindgen-futures.workspace = true
+serde-wasm-bindgen.workspace = true
+console_error_panic_hook.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+openapiv3.workspace = true
+getrandom = { version = "0.2", features = ["js"] }
+serde.workspace = true

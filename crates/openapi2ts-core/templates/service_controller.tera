@@ -1,0 +1,232 @@
+// @ts-ignore
+/* eslint-disable */
+// 该文件请使用 pnpm gen:api 运行生成
+// 如果需要扩展类型请在同级目录下的 api-extend.d.ts 文件进行扩展
+// generateTime: {{ time }}
+{{ requestImportStatement }}
+
+{% for api in list -%}
+  {#- API 函数注释：描述 + HTTP方法 + 路径 -#}
+  /** {{ api.description | default(value='此处后端没有提供注释') }} {{api.method | upper}} {{ api.originPath | safe }} */
+  export async function {{ api.functionName }}(
+    {#- 参数部分：根据每个参数类型判断 -#}
+    {%- if api.params %}
+      {%- if api.params.query or api.params.path or api.params.header %}
+        // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+        params
+        {%- if gen_type == "ts" -%}
+          {#- 检查是否需要内联类型定义 -#}
+          {%- if (api.params.query and api.params.query.query_type == "inline") or (api.params.path and api.params.path.path_type == "inline") -%}
+            : {
+              {#- Query 参数 -#}
+              {%- if api.params.query and api.params.query.query_type == "inline" %}
+                {%- for param in api.params.query.value.params %}
+                  {% if param.description -%}
+                    /** {{ param.description }} */
+                  {% endif -%}
+                  {% if param.needsQuotes -%}'{% endif -%}{{ param.name }}{% if param.needsQuotes -%}'{% endif -%}{%- if not param.required -%}?{%- endif -%}: {{ param.paramType }};
+                {%- endfor -%}
+              {%- endif -%}
+              {#- Path 参数 -#}
+              {%- if api.params.path and api.params.path.path_type == "inline" %}
+                {%- for param in api.params.path.value.params %}
+                  {% if param.description -%}
+                    /** {{ param.description }} */
+                  {% endif -%}
+                  {% if param.needsQuotes -%}'{% endif -%}{{ param.name }}{% if param.needsQuotes -%}'{% endif -%}: {{ param.paramType }};
+                {%- endfor -%}
+              {%- endif -%}
+            }
+          {%- elif api.params.query and api.params.query.query_type == "reference" -%}
+            {#- Query 引用类型 -#}
+            : {{ api.params.query.value }}
+          {%- elif api.params.path and api.params.path.path_type == "reference" -%}
+            {#- Path 引用类型 -#}
+            : {{ api.params.path.value }}
+          {%- else -%}
+            : any
+          {%- endif -%}
+          {#- Header 参数作为类型交叉 -#}
+          {% if api.params.header -%}
+            & { // header
+            {% for param in api.params.header -%}
+              {% if param.description -%}
+                /** {{ param.description }} */
+              {% endif -%}
+              {% if param.needsQuotes -%}'{% endif -%}{{ param.name }}{% if param.needsQuotes -%}'{% endif -%}
+              {%- if not param.required -%}?{%- endif -%}
+              : {{ param.paramType }};
+            {% endfor -%}
+            }
+          {%- endif -%}
+        {%- endif -%}
+        {%- if api.body or api.file -%},{%- endif -%}
+      {%- endif -%}
+    {%- endif -%}
+    {#- 请求体参数 -#}
+    {%- if api.body -%}
+      body
+      {%- if gen_type == "ts" -%}
+        {%- if not api.body.required -%}?{%- endif -%}
+        : {% if api.body.type.body_type == "json" %}
+          {%- if api.body.type.content_type == "inline" -%}
+            {
+            {%- for prop in api.body.type.value.properties %}
+              {% if prop.desc -%}
+                /** {{ prop.desc }} */
+              {% endif -%}
+              {{ prop.key }}{%- if not prop.is_required -%}?{%- endif -%}: {{ prop.value }},
+            {%- endfor %}
+            }
+          {%- elif api.body.type.content_type == "reference" -%}
+            {{ api.body.type.value }}
+          {%- else -%}
+            any
+          {%- endif -%}
+        {%- elif api.body.type.body_type == "form_data" or api.body.type.body_type == "form_urlencoded" -%}
+          {
+          {%- for prop in api.body.type.properties %}
+            {% if prop.desc -%}
+              /** {{ prop.desc }} */
+            {% endif -%}
+            {{ prop.key }}{%- if not prop.is_required -%}?{%- endif -%}: {{ prop.value }},
+          {%- endfor %}
+          }
+        {%- elif api.body.type.body_type == "other" -%}
+          {{ api.body.type.typeRef }}
+        {%- else -%}
+          any
+        {%- endif -%}
+      {%- endif -%}
+      {%- if api.file -%},{%- endif -%}
+    {%- endif %}
+    {#- 文件参数 -#}
+    {%- if api.file -%}
+      {%- for file in api.file -%}
+        {{file.title | safe}}
+        {%- if gen_type == "ts" -%}
+          {%- if not file.required -%}?{%- endif -%}
+          : File {%- if file.multiple -%}[]{%- endif -%}
+        {%- endif -%}
+        {%- if not loop.last -%},{%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+    {#- 参数分隔符：如果有任何参数，添加逗号 -#}
+    {%- if api.body or api.params or api.file -%},{%- endif -%}
+    {#- 请求选项参数 -#}
+    options {%- if gen_type == "ts" -%}?: {{ request_options_type }}{%- endif -%}
+  ) {
+    {#- 参数解构：将path参数从params中解构出来，剩余参数作为queryParams -#}
+    {% if api.params and api.params.path -%}
+      {% if api.params.path.path_type == "inline" -%}
+        const { {% for param in api.params.path.value.params %}{{ param.name }}, {% endfor %}
+        {% if api.params.path.value.params -%}
+          ...queryParams
+        {% endif -%}
+        } = params;
+      {% endif -%}
+    {% endif -%}
+    {#- FormData 处理：处理文件上传和表单数据 -#}
+    {% if api.hasFormData -%}
+      const formData = new FormData();
+      {#- 文件参数处理 -#}
+      {% if api.file -%}
+        {% for file in api.file %}
+          if({{file.title | safe}}){
+            {% if file.multiple %}
+              {{file.title | safe}}.forEach(f => formData.append('{{file.title | safe}}', f || ''));
+            {% else %}
+              formData.append('{{file.title | safe}}', {{file.title | safe}})
+            {% endif %}
+          }
+        {% endfor %}
+      {%- endif -%}
+      {#- 请求体数据转换为FormData -#}
+      {% if api.body %}
+        Object.keys(body).forEach(ele => {
+          {% if gen_type == "ts" %}
+            const item = (body as any)[ele];
+          {% else %}
+            const item = body[ele];
+          {% endif %}
+          if (item !== undefined && item !== null) {
+            {% if gen_type == "ts" %}
+              if (typeof item == 'object' && !(item instanceof File)) {
+                if (item instanceof Array) {
+                  item.forEach((f) => formData.append(ele, f || ''));
+                } else {
+                  formData.append(ele, new Blob([JSON.stringify(item)], {type: 'application/json'}));
+                }
+              } else {
+                formData.append(ele, item);
+              }
+            {% else %}
+              formData.append(ele, typeof item == 'object' ? JSON.stringify(item) : item);
+            {% endif %}
+          }
+        });
+      {% endif %}
+    {% endif -%}
+
+    {#- 组装 query params（axios 使用 config.params） -#}
+    {% if api.params and (api.params.query or api.params.path or api.params.header) -%}
+      const axiosParams = {
+        {% if api.params.path %}...queryParams{% else %}...params{% endif %},
+        {%- if api.params.query and api.params.query.query_type == "inline" %}
+          {%- for query in api.params.query.value.params %}
+            {%- if query.isComplexType %}
+              '{{query.name | safe}}': undefined,
+              {% if api.params.path %}...queryParams{% else %}...params{% endif %}['{{query.name | safe}}'],
+            {%- endif %}
+          {%- endfor -%}
+        {%- endif -%}
+      };
+    {%- endif %}
+
+    {#- axios 调用：按 method 选择对应函数，并把 query/body/formData 合并到 config -#}
+    {% set methodUpper = api.method | upper -%}
+    {% if methodUpper == "GET" %}
+      return axios.get{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}({% if api.hasPathVariables or api.hasApiPrefix -%}`{{ api.path | safe }}`{% else -%}'{{ api.path }}'{% endif -%}, {
+        {%- if api.params and (api.params.query or api.params.path or api.params.header) %}
+          params: axiosParams,
+        {%- endif %}
+        ...(options || {}),
+      });
+    {%- elif methodUpper == "DELETE" %}
+      return axios.delete{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}({% if api.hasPathVariables or api.hasApiPrefix -%}`{{ api.path | safe }}`{% else -%}'{{ api.path }}'{% endif -%}, {
+        {%- if api.params and (api.params.query or api.params.path or api.params.header) %}
+          params: axiosParams,
+        {%- endif %}
+        ...(options || {}),
+      });
+    {%- else -%}
+      {%- if api.hasFormData %}
+        return axios.{{ api.method | lower }}{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}({% if api.hasPathVariables or api.hasApiPrefix -%}`{{ api.path | safe }}`{% else -%}'{{ api.path }}'{% endif -%}, formData, {
+          {%- if api.params and (api.params.query or api.params.path or api.params.header) %}
+            params: axiosParams,
+          {%- endif %}
+          ...(options || {}),
+          headers: {
+            ...((options || {}).headers || {}),
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      {%- else %}
+        return axios.{{ api.method | lower }}{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}({% if api.hasPathVariables or api.hasApiPrefix -%}`{{ api.path | safe }}`{% else -%}'{{ api.path }}'{% endif -%}
+          {%- if api.body -%}
+            , body
+          {%- else -%}
+            , undefined
+          {%- endif -%}
+          , {
+            {%- if api.params and (api.params.query or api.params.path or api.params.header) %}
+              params: axiosParams,
+            {%- endif %}
+            ...(options || {}),
+          }
+        );
+      {%- endif -%}
+    {%- endif %}
+  }
+
+{% endfor -%}
