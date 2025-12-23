@@ -1,0 +1,7 @@
+{
+  "namespace": "API",
+  "schemaPath": "./openapi.json",
+  "declareType": "interface",
+  "serversPath": "./servers",
+  "requestLibPath": "import axios, { type AxiosRequestConfig } from 'axios';"
+}
