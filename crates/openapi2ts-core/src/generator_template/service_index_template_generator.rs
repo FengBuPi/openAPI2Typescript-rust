@@ -4,7 +4,7 @@ use tera::{Context, Tera};
 // 内嵌模板内容
 const TEMPLATE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/templates/serviceIndex.tera"
+    "/templates/service_index.tera"
 ));
 
 /// 服务控制器信息
@@ -70,7 +70,7 @@ pub fn generate_service_index_typescript_string(
 ) -> Result<String, Box<dyn std::error::Error>> {
     // 初始化 Tera 模板引擎
     let mut tera = Tera::default();
-    tera.add_raw_template("serviceIndex.tera", TEMPLATE)?;
+    tera.add_raw_template("service_index.tera", TEMPLATE)?;
 
     // 创建上下文并添加数据
     let mut context = Context::new();
@@ -81,7 +81,7 @@ pub fn generate_service_index_typescript_string(
     context.insert("list", &template_data.list);
 
     // 渲染模板
-    let rendered = tera.render("serviceIndex.tera", &context)?;
+    let rendered = tera.render("service_index.tera", &context)?;
     Ok(rendered)
 }
 
