@@ -131,3 +131,38 @@ cargo test
 
 - **Bug**：请提供复现步骤、输入的 OpenAPI（可脱敏）、以及报错日志
 - **新功能**：请描述使用场景、期望的输出与兼容性要求
+
+### 配置选项
+
+| 属性 | 必填 | 说明 | 类型 | 默认值 | 当前支持情况 |
+|------|------|------|------|--------|--------|
+| apiPrefix | 否 | API 前缀 | string | - | 1.0 |
+| authorization | 否 | 文档登录凭证 | string | - | 不准备支持, 我们只关注如何转换 |
+| dataFields | 否 | response 中数据字段 | string[] | - | 即将支持 |
+| declareType | 否 | interface 声明类型 | type/interface | interface | 现在只支持了interface |
+| enumStyle | 否 | 枚举样式 | string-literal \| enum | string-literal | 两个的支持了, 但是配置无法配置 |
+| isCamelCase | 否 | 小驼峰命名文件和请求函数 | boolean | true | 即将支持 |
+| isSwagger | 否 | 是否是swagger2 格式的文件，如果不配置则默认是openapi3，有可能导致解析失败 | boolean | false | 1.0 |
+| mockFolder | 否 | mock 目录 | string | - | 不准备支持 |
+| namespace | 否 | 命名空间名称 | string | API | 1.0 |
+| nullable | 否 | 使用 null 代替可选 | boolean | false | 即将支持 |
+| projectName | 否 | 项目名称 | string | - | 这是啥配置啊 |
+| requestImportStatement | 否 | 自定义请求方法表达式 | string | - | - |
+| requestLibPath | 否 | 自定义请求方法路径 | string | - | 1.0 |
+| requestOptionsType | 否 | 自定义请求方法 options 参数类型 | string | {[key: string]: any} | 即将支持 |
+| schemaPath | 否 | Swagger 2.0 或 OpenAPI 3.0 的地址 | string | - | 1.0 |
+| serversPath | 否 | 生成文件夹的路径 | string | - | 1.0 |
+| splitDeclare | 否 | 每个tag组一个独立的.d.ts. | boolean | - | 即将支持 |
+
+### 自定义钩子
+
+| 属性 | 类型 | 说明 | 当前支持情况 |
+|------|------|------|------|
+| afterOpenApiDataInited | (openAPIData: OpenAPIObject) => OpenAPIObject | OpenAPI 数据初始化后的钩子 | 即将支持 |
+| customFunctionName | (data: APIDataType) => string | 自定义请求方法函数名称 | 即将支持 |
+| customTypeName | (data: APIDataType) => string | 自定义类型名称 | 即将支持 |
+| customClassName | (tagName: string) => string | 自定义类名 | 即将支持 |
+| customType | (schemaObject, namespace, originGetType) => string | 自定义获取类型 | 即将支持 |
+| customFileNames | (operationObject, apiPath, _apiMethod) => string[] | 自定义生成文件名 | 即将支持 |
+| customUrlPath | (apiPath: string) => string | 自定义 URL 路径 | 1.0 |
+| fileterGenAPIFn | (apiPath: string, apiMethod: string) => boolean | 过滤生成的 API 接口函数 | 即将支持 |
