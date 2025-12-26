@@ -172,11 +172,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     });
 
-    let ((), (), ()) = tokio::try_join!(
-        async { types_handle.await??; Ok::<(), Box<dyn std::error::Error + Send + Sync>>(()) },
-        async { controllers_handle.await??; Ok::<(), Box<dyn std::error::Error + Send + Sync>>(()) },
-        async { index_handle.await??; Ok::<(), Box<dyn std::error::Error + Send + Sync>>(()) },
-    )?;
+    types_handle.await??;
+    controllers_handle.await??;
+    index_handle.await??;
 
     println!("✅ 生成完成");
     println!("✅ 结果已保存到 {} 目录", config.servers_path);
