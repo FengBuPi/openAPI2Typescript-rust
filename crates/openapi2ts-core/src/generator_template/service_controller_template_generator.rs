@@ -192,7 +192,6 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header: Option<Vec<Param>>,
 }
-
 /// JSON 内容类型（内联或引用）
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "content_type", content = "value", rename_all = "snake_case")]
@@ -290,7 +289,6 @@ pub struct ApiDefinition {
     pub body: Option<RequestBody>,
     pub file: Option<Vec<FileParam>>,
     pub response: Response,
-    pub options: Option<serde_json::Value>,
     #[serde(rename = "hasFormData")]
     pub has_form_data: bool,
     #[serde(rename = "hasPathVariables")]
@@ -313,6 +311,11 @@ pub struct ServiceControllerTemplateData {
 pub fn generate_service_controller_typescript_string(
     template_data: ServiceControllerTemplateData,
 ) -> Result<String, Box<dyn std::error::Error>> {
+    // 测试：打印模板数据以便调试
+    // println!("controller_template_data: {:#?}", template_data);
+    // let template_data_json = serde_json::to_string_pretty(&template_data)?;
+    // std::fs::write("./controller_template_data.json", template_data_json)?;
+
     // 初始化 Tera 模板引擎
     let mut tera = Tera::default();
     tera.add_raw_template("service_controller.tera", TEMPLATE)?;
@@ -372,7 +375,6 @@ mod tests {
                     body: None,
                     file: None,
                     response: Response::Reference("User".to_string()),
-                    options: None,
                     has_form_data: false,
                     has_path_variables: true,
                     has_api_prefix: true,
@@ -394,7 +396,6 @@ mod tests {
                     }),
                     file: None,
                     response: Response::Reference("User".to_string()),
-                    options: None,
                     has_form_data: false,
                     has_path_variables: false,
                     has_api_prefix: true,
@@ -426,7 +427,6 @@ mod tests {
                         required: true,
                     }]),
                     response: Response::Reference("UploadResult".to_string()),
-                    options: None,
                     has_form_data: true,
                     has_path_variables: true,
                     has_api_prefix: true,
@@ -467,7 +467,6 @@ mod tests {
                         required: true,
                     }]),
                     response: Response::Reference("UploadResult[]".to_string()),
-                    options: None,
                     has_form_data: true,
                     has_path_variables: false,
                     has_api_prefix: true,
@@ -517,7 +516,6 @@ mod tests {
                         required: true,
                     }]),
                     response: Response::Reference("DocumentInfo".to_string()),
-                    options: None,
                     has_form_data: true,
                     has_path_variables: false,
                     has_api_prefix: true,
@@ -555,7 +553,6 @@ mod tests {
                         required: true,
                     }]),
                     response: Response::Reference("Album".to_string()),
-                    options: None,
                     has_form_data: true,
                     has_path_variables: true,
                     has_api_prefix: true,
@@ -625,7 +622,6 @@ mod tests {
                     body: None,
                     file: None,
                     response: Response::Reference("ProductDetail".to_string()),
-                    options: None,
                     has_form_data: false,
                     has_path_variables: true,
                     has_api_prefix: true,
@@ -646,7 +642,6 @@ mod tests {
                     body: None,
                     file: None,
                     response: Response::Reference("ProductList".to_string()),
-                    options: None,
                     has_form_data: false,
                     has_path_variables: false,
                     has_api_prefix: true,
@@ -693,7 +688,6 @@ mod tests {
                 body: None,
                 file: None,
                 response: Response::Reference("User".to_string()),
-                options: None,
                 has_form_data: false,
                 has_path_variables: true,
                 has_api_prefix: true,
@@ -727,7 +721,7 @@ mod tests {
         assert!(rendered.contains("const { id,"));
         assert!(rendered.contains("return axios.get"));
         assert!(rendered.contains("`/api/users/${id}`"));
-        assert!(rendered.contains("params: axiosParams"));
+        assert!(rendered.contains("params: queryParams"));
 
         Ok(())
     }

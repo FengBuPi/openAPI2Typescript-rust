@@ -179,7 +179,6 @@ fn convert_operation_to_api_definition(
         body,
         file: None, // TODO: 实现文件参数转换
         response,
-        options: None,
         has_form_data,
         has_path_variables,
         has_api_prefix,
