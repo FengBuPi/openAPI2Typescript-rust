@@ -161,22 +161,11 @@ pub struct Param {
     pub needs_quotes: bool,
 }
 
-/// Query 参数类型（内联或引用）
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "query_type", content = "value", rename_all = "snake_case")]
-pub enum QueryParams {
+#[serde(tag = "params_type", content = "value", rename_all = "snake_case")]
+pub enum InlineOrRefParams {
     /// 内联类型：直接定义参数列表
-    Inline { params: Vec<Param> },
-    /// 引用类型：使用外部定义的类型名称
-    Reference(String),
-}
-
-/// Path 参数类型（内联或引用）
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "path_type", content = "value", rename_all = "snake_case")]
-pub enum PathParams {
-    /// 内联类型：直接定义参数列表
-    Inline { params: Vec<Param> },
+    Inline(Vec<Param>),
     /// 引用类型：使用外部定义的类型名称
     Reference(String),
 }
@@ -185,13 +174,14 @@ pub enum PathParams {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub query: Option<QueryParams>,
+    pub query: Option<InlineOrRefParams>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub path: Option<PathParams>,
+    pub path: Option<InlineOrRefParams>,
     /// Header 只能是内联类型
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header: Option<Vec<Param>>,
 }
+
 /// JSON 内容类型（内联或引用）
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "content_type", content = "value", rename_all = "snake_case")]
@@ -361,15 +351,14 @@ mod tests {
                     origin_path: "/api/users/{id}".to_string(),
                     params: Some(Params {
                         query: None,
-                        path: Some(PathParams::Inline {
-                            params: vec![Param {
+                        path: Some(InlineOrRefParams::Inline(vec![Param {
                                 name: "id".to_string(),
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("用户ID".to_string()),
                                 needs_quotes: false,
-                            }],
-                        }),
+                            },
+                        ])),
                         header: None,
                     }),
                     body: None,
@@ -409,15 +398,14 @@ mod tests {
                     origin_path: "/api/users/{id}/avatar".to_string(),
                     params: Some(Params {
                         query: None,
-                        path: Some(PathParams::Inline {
-                            params: vec![Param {
+                        path: Some(InlineOrRefParams::Inline(vec![Param {
                                 name: "id".to_string(),
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("用户ID".to_string()),
                                 needs_quotes: false,
-                            }],
-                        }),
+                            },
+                        ])),
                         header: None,
                     }),
                     body: None,
@@ -529,19 +517,18 @@ mod tests {
                     origin_path: "/api/albums/{albumId}/photos".to_string(),
                     params: Some(Params {
                         query: None,
-                        path: Some(PathParams::Inline {
-                            params: vec![Param {
+                        path: Some(InlineOrRefParams::Inline(vec![Param {
                                 name: "albumId".to_string(),
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("相册ID".to_string()),
                                 needs_quotes: false,
-                            }],
-                        }),
+                            },
+                        ])),
                         header: None,
                     }),
                     body: Some(RequestBody {
-                        description: Some("相册更新信息".to_string()),
+                        description: Some("相册信息".to_string()),
                         body_type: RequestBodyType::Json {
                             content: JsonContentType::Reference("AlbumUpdateInfo".to_string()),
                         },
@@ -566,8 +553,7 @@ mod tests {
                     origin_path: "/api/products/{id}".to_string(),
                     params: Some(Params {
                         // Query 参数 - 内联
-                        query: Some(QueryParams::Inline {
-                            params: vec![
+                        query: Some(InlineOrRefParams::Inline(vec![
                                 Param {
                                     name: "include".to_string(),
                                     param_type: "string".to_string(),
@@ -589,18 +575,15 @@ mod tests {
                                     description: Some("指定返回的字段".to_string()),
                                     needs_quotes: false,
                                 },
-                            ],
-                        }),
+                            ])),
                         // Path 参数 - 内联
-                        path: Some(PathParams::Inline {
-                            params: vec![Param {
+                        path: Some(InlineOrRefParams::Inline(vec![Param {
                                 name: "id".to_string(),
                                 param_type: "string".to_string(),
                                 required: true,
                                 description: Some("商品ID".to_string()),
                                 needs_quotes: false,
-                            }],
-                        }),
+                            }])),
                         // Header 参数 - 内联（Header 只能是内联）
                         header: Some(vec![
                             Param {
@@ -635,7 +618,7 @@ mod tests {
                     origin_path: "/api/products/search".to_string(),
                     params: Some(Params {
                         // Query 参数 - 引用类型
-                        query: Some(QueryParams::Reference("ProductSearchQuery".to_string())),
+                        query: Some(InlineOrRefParams::Reference("ProductSearchQuery".to_string())),
                         path: None,
                         header: None,
                     }),
@@ -674,15 +657,14 @@ mod tests {
                 origin_path: "/api/users/{id}".to_string(),
                 params: Some(Params {
                     query: None,
-                    path: Some(PathParams::Inline {
-                        params: vec![Param {
+                    path: Some(InlineOrRefParams::Inline(vec![Param {
                             name: "id".to_string(),
                             param_type: "string".to_string(),
                             required: true,
                             description: Some("用户ID".to_string()),
                             needs_quotes: false,
-                        }],
-                    }),
+                        },
+                    ])),
                     header: None,
                 }),
                 body: None,

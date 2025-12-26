@@ -16,11 +16,11 @@
         params
         {%- if gen_type == "ts" -%}
           {#- 检查是否需要内联类型定义 -#}
-          {%- if (api.params.query and api.params.query.query_type == "inline") or (api.params.path and api.params.path.path_type == "inline") -%}
+          {%- if (api.params.query and api.params.query.params_type == "inline") or (api.params.path and api.params.path.params_type == "inline") -%}
             : {
               {#- Query 参数 -#}
-              {%- if api.params.query and api.params.query.query_type == "inline" %}
-                {%- for param in api.params.query.value.params %}
+              {%- if api.params.query and api.params.query.params_type == "inline" %}
+                {%- for param in api.params.query.value %}
                   {% if param.description -%}
                     /** {{ param.description }} */
                   {% endif -%}
@@ -28,8 +28,8 @@
                 {%- endfor -%}
               {%- endif -%}
               {#- Path 参数 -#}
-              {%- if api.params.path and api.params.path.path_type == "inline" %}
-                {%- for param in api.params.path.value.params %}
+              {%- if api.params.path and api.params.path.params_type == "inline" %}
+                {%- for param in api.params.path.value %}
                   {% if param.description -%}
                     /** {{ param.description }} */
                   {% endif -%}
@@ -37,10 +37,10 @@
                 {%- endfor -%}
               {%- endif -%}
             }
-          {%- elif api.params.query and api.params.query.query_type == "reference" -%}
+          {%- elif api.params.query and api.params.query.params_type == "reference" -%}
             {#- Query 引用类型 -#}
             : {{ api.params.query.value }}
-          {%- elif api.params.path and api.params.path.path_type == "reference" -%}
+          {%- elif api.params.path and api.params.path.params_type == "reference" -%}
             {#- Path 引用类型 -#}
             : {{ api.params.path.value }}
           {%- else -%}
@@ -118,9 +118,9 @@
   ) {
     {#- 参数解构：将path参数从params中解构出来，剩余参数作为queryParams -#}
     {% if api.params and api.params.path -%}
-      {% if api.params.path.path_type == "inline" -%}
-        const { {% for param in api.params.path.value.params %}{{ param.name }}, {% endfor %}
-        {% if api.params.path.value.params -%}
+      {% if api.params.path.params_type == "inline" -%}
+        const { {% for param in api.params.path.value %}{{ param.name }}, {% endfor %}
+        {% if api.params.path.value -%}
           ...queryParams
         {% endif -%}
         } = params;
@@ -168,34 +168,19 @@
       {% endif %}
     {% endif -%}
 
-    {#- 组装 query params（axios 使用 config.params） -#}
-    {% if api.params and (api.params.query or api.params.path or api.params.header) -%}
-      const axiosParams = {
-        {% if api.params.path %}...queryParams{% else %}...params{% endif %},
-        {%- if api.params.query and api.params.query.query_type == "inline" %}
-          {%- for query in api.params.query.value.params %}
-            {%- if query.isComplexType %}
-              '{{query.name | safe}}': undefined,
-              {% if api.params.path %}...queryParams{% else %}...params{% endif %}['{{query.name | safe}}'],
-            {%- endif %}
-          {%- endfor -%}
-        {%- endif -%}
-      };
-    {%- endif %}
-
     {#- axios 调用：按 method 选择对应函数，并把 query/body/formData 合并到 config -#}
     {% set methodUpper = api.method | upper -%}
     {% if methodUpper == "GET" %}
       return axios.get{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}({% if api.hasPathVariables or api.hasApiPrefix -%}`{{ api.path | safe }}`{% else -%}'{{ api.path }}'{% endif -%}, {
         {%- if api.params and (api.params.query or api.params.path or api.params.header) %}
-          params: axiosParams,
+          params: {% if api.params.path %}queryParams{% else %}params{% endif %},
         {%- endif %}
         ...(options || {}),
       });
     {%- elif methodUpper == "DELETE" %}
       return axios.delete{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}({% if api.hasPathVariables or api.hasApiPrefix -%}`{{ api.path | safe }}`{% else -%}'{{ api.path }}'{% endif -%}, {
         {%- if api.params and (api.params.query or api.params.path or api.params.header) %}
-          params: axiosParams,
+          params: {% if api.params.path %}queryParams{% else %}params{% endif %},
         {%- endif %}
         ...(options || {}),
       });
@@ -203,7 +188,7 @@
       {%- if api.hasFormData %}
         return axios.{{ api.method | lower }}{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}({% if api.hasPathVariables or api.hasApiPrefix -%}`{{ api.path | safe }}`{% else -%}'{{ api.path }}'{% endif -%}, formData, {
           {%- if api.params and (api.params.query or api.params.path or api.params.header) %}
-            params: axiosParams,
+            params: {% if api.params.path %}queryParams{% else %}params{% endif %},
           {%- endif %}
           ...(options || {}),
           headers: {
@@ -220,7 +205,7 @@
           {%- endif -%}
           , {
             {%- if api.params and (api.params.query or api.params.path or api.params.header) %}
-              params: axiosParams,
+              params: {% if api.params.path %}queryParams{% else %}params{% endif %},
             {%- endif %}
             ...(options || {}),
           }

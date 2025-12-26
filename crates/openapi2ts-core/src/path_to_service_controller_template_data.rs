@@ -8,8 +8,8 @@ use crate::{
     generator_template::{
         interface_template_generator::Property,
         service_controller_template_generator::{
-            ApiDefinition, HttpMethod as TemplateHttpMethod, JsonContentType, MediaTypeKind, Param,
-            Params, PathParams, QueryParams, RequestBody, RequestBodyType, Response,
+            ApiDefinition, HttpMethod as TemplateHttpMethod, InlineOrRefParams, JsonContentType,
+            MediaTypeKind, Param, Params, RequestBody, RequestBodyType, Response,
             ServiceControllerTemplateData,
         },
     },
@@ -531,20 +531,20 @@ fn extract_param_type(
 }
 
 /// 创建 Query 参数（如果有）
-fn create_query_params(params: Vec<Param>) -> Option<QueryParams> {
+fn create_query_params(params: Vec<Param>) -> Option<InlineOrRefParams> {
     if params.is_empty() {
         None
     } else {
-        Some(QueryParams::Inline { params })
+        Some(InlineOrRefParams::Inline(params))
     }
 }
 
 /// 创建 Path 参数（如果有）
-fn create_path_params(params: Vec<Param>) -> Option<PathParams> {
+fn create_path_params(params: Vec<Param>) -> Option<InlineOrRefParams> {
     if params.is_empty() {
         None
     } else {
-        Some(PathParams::Inline { params })
+        Some(InlineOrRefParams::Inline(params))
     }
 }
 
