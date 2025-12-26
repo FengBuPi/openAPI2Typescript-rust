@@ -12,7 +12,7 @@
     {#- 参数部分：根据每个参数类型判断 -#}
     {%- if api.params %}
       {%- if api.params.query or api.params.path or api.params.header %}
-        // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+        /** 叠加生成的Param类型 (非body参数swagger默认没有生成对象) */
         params
         {%- if gen_type == "ts" -%}
           {#- 检查是否需要内联类型定义 -#}
@@ -69,7 +69,7 @@
       {%- if gen_type == "ts" -%}
         {%- if not api.body.required -%}?{%- endif -%}
         : {% if api.body.type.body_type == "json" %}
-          {%- if api.body.type.content_type == "inline" -%}
+          {%- if api.body.type.params_type == "inline" -%}
             {
             {%- for prop in api.body.type.value %}
               {% if prop.description -%}
@@ -78,7 +78,7 @@
               {{ prop.key }}{%- if not prop.is_required -%}?{%- endif -%}: {{ prop.value }},
             {%- endfor %}
             }
-          {%- elif api.body.type.content_type == "reference" -%}
+          {%- elif api.body.type.params_type == "reference" -%}
             {{ api.body.type.value }}
           {%- else -%}
             any
@@ -171,14 +171,14 @@
     {#- axios 调用：按 method 选择对应函数，并把 query/body/formData 合并到 config -#}
     {% set methodUpper = api.method | upper -%}
     {% if methodUpper == "GET" %}
-      return axios.get{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}({% if api.hasPathVariables or api.hasApiPrefix -%}`{{ api.path | safe }}`{% else -%}'{{ api.path }}'{% endif -%}, {
+      return axios.get{%- if gen_type == "ts" -%}<{% if api.response.params_type == "inline" %}any{% else %}{{ api.response.value }}{% endif %}>{%- endif -%}(`{{ api.path | safe }}`, {
         {%- if api.params and (api.params.query or api.params.path or api.params.header) %}
           params: {% if api.params.path %}queryParams{% else %}params{% endif %},
         {%- endif %}
         ...(options || {}),
       });
     {%- elif methodUpper == "DELETE" %}
-      return axios.delete{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}({% if api.hasPathVariables or api.hasApiPrefix -%}`{{ api.path | safe }}`{% else -%}'{{ api.path }}'{% endif -%}, {
+      return axios.delete{%- if gen_type == "ts" -%}<{% if api.response.params_type == "inline" %}any{% else %}{{ api.response.value }}{% endif %}>{%- endif -%}(`{{ api.path | safe }}`, {
         {%- if api.params and (api.params.query or api.params.path or api.params.header) %}
           params: {% if api.params.path %}queryParams{% else %}params{% endif %},
         {%- endif %}
@@ -186,7 +186,7 @@
       });
     {%- else -%}
       {%- if api.hasFormData %}
-        return axios.{{ api.method | lower }}{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}({% if api.hasPathVariables or api.hasApiPrefix -%}`{{ api.path | safe }}`{% else -%}'{{ api.path }}'{% endif -%}, formData, {
+        return axios.{{ api.method | lower }}{%- if gen_type == "ts" -%}<{% if api.response.params_type == "inline" %}any{% else %}{{ api.response.value }}{% endif %}>{%- endif -%}(`{{ api.path | safe }}`, formData, {
           {%- if api.params and (api.params.query or api.params.path or api.params.header) %}
             params: {% if api.params.path %}queryParams{% else %}params{% endif %},
           {%- endif %}
@@ -197,7 +197,7 @@
           },
         });
       {%- else %}
-        return axios.{{ api.method | lower }}{%- if gen_type == "ts" -%}<{% if api.response.response_type == "inline" %}any{% else %}{{ api.response.content }}{% endif %}>{%- endif -%}({% if api.hasPathVariables or api.hasApiPrefix -%}`{{ api.path | safe }}`{% else -%}'{{ api.path }}'{% endif -%}
+        return axios.{{ api.method | lower }}{%- if gen_type == "ts" -%}<{% if api.response.params_type == "inline" %}any{% else %}{{ api.response.value }}{% endif %}>{%- endif -%}(`{{ api.path | safe }}`
           {%- if api.body -%}
             , body
           {%- else -%}
