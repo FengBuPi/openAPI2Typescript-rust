@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use heck::ToPascalCase;
-use openapiv3::{OpenAPI, Operation, ReferenceOr};
+use openapiv3::{OpenAPI, Operation, Parameter, ReferenceOr};
 
 use crate::{
     utles::tag_to_file_name,
@@ -232,7 +232,7 @@ fn generate_function_name(method: &TemplateHttpMethod, path: &str) -> String {
 /// * `Ok(None)` - 没有参数
 /// * `Err(...)` - 转换失败
 fn convert_parameters(
-    parameters: &Vec<openapiv3::ReferenceOr<openapiv3::Parameter>>,
+    parameters: &Vec<ReferenceOr<Parameter>>,
     namespace: &str,
 ) -> Result<Option<Params>, Box<dyn std::error::Error>> {
     if parameters.is_empty() {
@@ -270,8 +270,12 @@ fn convert_parameters(
                     openapiv3::Parameter::Cookie { .. } => continue,
                 }
             }
-            ReferenceOr::Reference { .. } => {
+            ReferenceOr::Reference{ reference } => {
                 // 参数引用类型比较少见，暂时跳过
+                eprintln!(
+                    "[openapi2ts][debug] 跳过引用参数 ($ref = {}) in namespace: {}",
+                    reference, namespace
+                );
                 continue;
             }
         }
