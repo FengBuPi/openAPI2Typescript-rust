@@ -116,6 +116,11 @@ pub struct TemplateData {
 pub fn generate_typescript_types_string(
     template_data: TemplateData,
 ) -> Result<String, Box<dyn std::error::Error>> {
+    // 测试：打印模板数据以便调试
+    // println!("template_data{:#?}", template_data);
+    // let template_data_json = serde_json::to_string_pretty(&template_data)?;
+    // fs::write("./template_data.json", template_data_json)?;
+
     // 初始化 Tera 模板引擎
     let mut tera = Tera::default();
     tera.add_raw_template("interface.tera", TEMPLATE)?;
@@ -327,4 +332,12 @@ mod tests {
         println!("rendered:\n{}", rendered);
         Ok(())
     }
+
+    #[test]
+    // 看看openapi这些json转换成模版需要的数据长什么样子
+    fn test_generate_service_controller_data() {
+        // 这里可以添加具体的测试逻辑
+        assert!(true);
+    }
+
 }
