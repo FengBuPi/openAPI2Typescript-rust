@@ -143,29 +143,11 @@ pub enum ParamLocation {
     Cookie,
 }
 
-/// 参数定义
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Param {
-    pub name: String,
-    #[serde(rename = "paramType")]
-    pub param_type: String,
-    pub required: bool,
-    pub description: Option<String>,
-    /// 参数名是否需要单引号包裹（当参数名不符合 JS/TS 标识符规范时为 true）
-    /// 例如：
-    ///  /** 一个带短横线的参数 */
-    ///  'a-b': string;
-    ///  /** 一个可能需要引号的保留字参数 */
-    ///  'default'?: string;
-    #[serde(rename = "needsQuotes")]
-    pub needs_quotes: bool,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "params_type", content = "value", rename_all = "snake_case")]
 pub enum InlineOrRefParams {
     /// 内联类型：直接定义参数列表
-    Inline(Vec<Param>),
+    Inline(Vec<Property>),
     /// 引用类型：使用外部定义的类型名称
     Reference(String),
 }
@@ -173,23 +155,13 @@ pub enum InlineOrRefParams {
 /// 参数组
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Params {
+    /// Header 只能是内联类型
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub header: Option<Vec<Property>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub query: Option<InlineOrRefParams>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<InlineOrRefParams>,
-    /// Header 只能是内联类型
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub header: Option<Vec<Param>>,
-}
-
-/// JSON 内容类型（内联或引用）
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "content_type", content = "value", rename_all = "snake_case")]
-pub enum JsonContentType {
-    /// 内联类型：直接定义对象结构
-    Inline { properties: Vec<Property> },
-    /// 引用类型：使用外部定义的类型名称
-    Reference(String),
 }
 
 /// 请求体类型（根据媒体类型区分）
@@ -199,7 +171,7 @@ pub enum RequestBodyType {
     /// application/json
     Json {
         #[serde(flatten)]
-        content: JsonContentType,
+        content: InlineOrRefParams,
     },
 
     /// multipart/form-data - 表单数据
@@ -252,16 +224,6 @@ pub struct FileParam {
     pub required: bool,
 }
 
-/// 响应定义（枚举）
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "response_type", content = "content", rename_all = "snake_case")]
-pub enum Response {
-    /// 内联类型：直接定义响应对象结构
-    Inline { properties: Vec<Property> },
-    /// 引用类型：使用外部定义的类型名称
-    Reference(String),
-}
-
 /// API 定义
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApiDefinition {
@@ -275,16 +237,15 @@ pub struct ApiDefinition {
     pub origin_path: String,
     /// 具有内联类型和引用类型的两种形态
     pub params: Option<Params>,
-    /// 具有内联类型和引用类型的两种形态
     pub body: Option<RequestBody>,
     pub file: Option<Vec<FileParam>>,
-    pub response: Response,
+    pub response: InlineOrRefParams,
+    /// 需要用 FormData 方式提交
     #[serde(rename = "hasFormData")]
     pub has_form_data: bool,
+    /// 是否包含路径变量
     #[serde(rename = "hasPathVariables")]
     pub has_path_variables: bool,
-    #[serde(rename = "hasApiPrefix")]
-    pub has_api_prefix: bool,
 }
 
 /// 服务控制器模板数据
@@ -302,7 +263,7 @@ pub fn generate_service_controller_typescript_string(
     template_data: ServiceControllerTemplateData,
 ) -> Result<String, Box<dyn std::error::Error>> {
     // 测试：打印模板数据以便调试
-    // println!("controller_template_data: {:#?}", template_data);
+    println!("controller_template_data: {:#?}", template_data);
     // let template_data_json = serde_json::to_string_pretty(&template_data)?;
     // std::fs::write("./controller_template_data.json", template_data_json)?;
 
@@ -351,10 +312,10 @@ mod tests {
                     origin_path: "/api/users/{id}".to_string(),
                     params: Some(Params {
                         query: None,
-                        path: Some(InlineOrRefParams::Inline(vec![Param {
-                                name: "id".to_string(),
-                                param_type: "string".to_string(),
-                                required: true,
+                        path: Some(InlineOrRefParams::Inline(vec![Property {
+                                key: "id".to_string(),
+                                value: "string".to_string(),
+                                is_required: true,
                                 description: Some("用户ID".to_string()),
                                 needs_quotes: false,
                             },
@@ -363,10 +324,9 @@ mod tests {
                     }),
                     body: None,
                     file: None,
-                    response: Response::Reference("User".to_string()),
+                    response: InlineOrRefParams::Reference("User".to_string()),
                     has_form_data: false,
                     has_path_variables: true,
-                    has_api_prefix: true,
                 },
                 // 示例2: POST 请求，JSON body（引用类型）
                 ApiDefinition {
@@ -379,15 +339,14 @@ mod tests {
                     body: Some(RequestBody {
                         description: Some("创建用户的请求体".to_string()),
                         body_type: RequestBodyType::Json {
-                            content: JsonContentType::Reference("CreateUserRequest".to_string()),
+                            content: InlineOrRefParams::Reference("CreateUserRequest".to_string()),
                         },
                         required: true,
                     }),
                     file: None,
-                    response: Response::Reference("User".to_string()),
+                    response: InlineOrRefParams::Reference("User".to_string()),
                     has_form_data: false,
                     has_path_variables: false,
-                    has_api_prefix: true,
                 },
                 // 示例3: POST 请求，文件上传（单文件）
                 ApiDefinition {
@@ -398,10 +357,10 @@ mod tests {
                     origin_path: "/api/users/{id}/avatar".to_string(),
                     params: Some(Params {
                         query: None,
-                        path: Some(InlineOrRefParams::Inline(vec![Param {
-                                name: "id".to_string(),
-                                param_type: "string".to_string(),
-                                required: true,
+                        path: Some(InlineOrRefParams::Inline(vec![Property {
+                                key: "id".to_string(),
+                                value: "string".to_string(),
+                                is_required: true,
                                 description: Some("用户ID".to_string()),
                                 needs_quotes: false,
                             },
@@ -414,10 +373,9 @@ mod tests {
                         multiple: false,
                         required: true,
                     }]),
-                    response: Response::Reference("UploadResult".to_string()),
+                    response: InlineOrRefParams::Reference("UploadResult".to_string()),
                     has_form_data: true,
                     has_path_variables: true,
-                    has_api_prefix: true,
                 },
                 // 示例4: POST 请求，多文件上传 + 表单数据
                 ApiDefinition {
@@ -435,14 +393,14 @@ mod tests {
                                     key: "folder".to_string(),
                                     value: "string".to_string(),
                                     is_required: true,
-                                    desc: Some("目标文件夹".to_string()),
+                                    description: Some("目标文件夹".to_string()),
                                     needs_quotes: false,
                                 },
                                 Property {
                                     key: "public".to_string(),
                                     value: "boolean".to_string(),
                                     is_required: false,
-                                    desc: Some("是否公开".to_string()),
+                                    description: Some("是否公开".to_string()),
                                     needs_quotes: false,
                                 },
                             ],
@@ -454,47 +412,37 @@ mod tests {
                         multiple: true,
                         required: true,
                     }]),
-                    response: Response::Reference("UploadResult[]".to_string()),
+                    response: InlineOrRefParams::Reference("UploadResult[]".to_string()),
                     has_form_data: true,
                     has_path_variables: false,
-                    has_api_prefix: true,
                 },
                 // 示例5: POST 请求，单文件上传 + JSON 数据
                 ApiDefinition {
-                    description: Some("示例5:上传文件并提交元数据（JSON）".to_string()),
+                    description: Some("示例5:上传文档（JSON body - 内联）".to_string()),
                     method: HttpMethod::Post,
-                    function_name: "uploadFileWithMetadata".to_string(),
-                    path: "/api/documents/upload".to_string(),
-                    origin_path: "/api/documents/upload".to_string(),
+                    function_name: "uploadDocument".to_string(),
+                    path: "/api/documents".to_string(),
+                    origin_path: "/api/documents".to_string(),
                     params: None,
                     body: Some(RequestBody {
                         description: Some("文档元数据".to_string()),
                         body_type: RequestBodyType::Json {
-                            content: JsonContentType::Inline {
-                                properties: vec![
-                                    Property {
-                                        key: "title".to_string(),
-                                        value: "string".to_string(),
-                                        is_required: true,
-                                        desc: Some("文档标题".to_string()),
-                                        needs_quotes: false,
-                                    },
-                                    Property {
-                                        key: "category".to_string(),
-                                        value: "string".to_string(),
-                                        is_required: true,
-                                        desc: Some("分类".to_string()),
-                                        needs_quotes: false,
-                                    },
-                                    Property {
-                                        key: "tags".to_string(),
-                                        value: "string[]".to_string(),
-                                        is_required: false,
-                                        desc: Some("标签列表".to_string()),
-                                        needs_quotes: false,
-                                    },
-                                ],
-                            },
+                            content: InlineOrRefParams::Inline(vec![
+                                Property {
+                                    key: "title".to_string(),
+                                    value: "string".to_string(),
+                                    is_required: true,
+                                    description: Some("文档标题".to_string()),
+                                    needs_quotes: false,
+                                },
+                                Property {
+                                    key: "tags".to_string(),
+                                    value: "string[]".to_string(),
+                                    is_required: false,
+                                    description: Some("文档标签".to_string()),
+                                    needs_quotes: false,
+                                },
+                            ]),
                         },
                         required: true,
                     }),
@@ -503,10 +451,9 @@ mod tests {
                         multiple: false,
                         required: true,
                     }]),
-                    response: Response::Reference("DocumentInfo".to_string()),
+                    response: InlineOrRefParams::Reference("DocumentInfo".to_string()),
                     has_form_data: true,
                     has_path_variables: false,
-                    has_api_prefix: true,
                 },
                 // 示例6: POST 请求，多文件上传 + JSON 数据（引用类型）
                 ApiDefinition {
@@ -517,10 +464,10 @@ mod tests {
                     origin_path: "/api/albums/{albumId}/photos".to_string(),
                     params: Some(Params {
                         query: None,
-                        path: Some(InlineOrRefParams::Inline(vec![Param {
-                                name: "albumId".to_string(),
-                                param_type: "string".to_string(),
-                                required: true,
+                        path: Some(InlineOrRefParams::Inline(vec![Property {
+                                key: "albumId".to_string(),
+                                value: "string".to_string(),
+                                is_required: true,
                                 description: Some("相册ID".to_string()),
                                 needs_quotes: false,
                             },
@@ -530,7 +477,7 @@ mod tests {
                     body: Some(RequestBody {
                         description: Some("相册信息".to_string()),
                         body_type: RequestBodyType::Json {
-                            content: JsonContentType::Reference("AlbumUpdateInfo".to_string()),
+                            content: InlineOrRefParams::Reference("AlbumUpdateInfo".to_string()),
                         },
                         required: true,
                     }),
@@ -539,10 +486,9 @@ mod tests {
                         multiple: true,
                         required: true,
                     }]),
-                    response: Response::Reference("Album".to_string()),
+                    response: InlineOrRefParams::Reference("Album".to_string()),
                     has_form_data: true,
                     has_path_variables: true,
-                    has_api_prefix: true,
                 },
                 // 示例7: GET 请求，包含所有类型的参数（query、path、header）
                 ApiDefinition {
@@ -554,49 +500,49 @@ mod tests {
                     params: Some(Params {
                         // Query 参数 - 内联
                         query: Some(InlineOrRefParams::Inline(vec![
-                                Param {
-                                    name: "include".to_string(),
-                                    param_type: "string".to_string(),
-                                    required: false,
+                                Property {
+                                    key: "include".to_string(),
+                                    value: "string".to_string(),
+                                    is_required: false,
                                     description: Some("包含的关联数据".to_string()),
                                     needs_quotes: false,
                                 },
-                                Param {
-                                    name: "locale".to_string(),
-                                    param_type: "string".to_string(),
-                                    required: false,
+                                Property {
+                                    key: "locale".to_string(),
+                                    value: "string".to_string(),
+                                    is_required: false,
                                     description: Some("语言环境".to_string()),
                                     needs_quotes: false,
                                 },
-                                Param {
-                                    name: "fields".to_string(),
-                                    param_type: "string".to_string(),
-                                    required: false,
+                                Property {
+                                    key: "fields".to_string(),
+                                    value: "string".to_string(),
+                                    is_required: false,
                                     description: Some("指定返回的字段".to_string()),
                                     needs_quotes: false,
                                 },
                             ])),
                         // Path 参数 - 内联
-                        path: Some(InlineOrRefParams::Inline(vec![Param {
-                                name: "id".to_string(),
-                                param_type: "string".to_string(),
-                                required: true,
+                        path: Some(InlineOrRefParams::Inline(vec![Property {
+                                key: "id".to_string(),
+                                value: "string".to_string(),
+                                is_required: true,
                                 description: Some("商品ID".to_string()),
                                 needs_quotes: false,
                             }])),
                         // Header 参数 - 内联（Header 只能是内联）
                         header: Some(vec![
-                            Param {
-                                name: "Authorization".to_string(),
-                                param_type: "string".to_string(),
-                                required: true,
+                            Property {
+                                key: "Authorization".to_string(),
+                                value: "string".to_string(),
+                                is_required: true,
                                 description: Some("授权令牌".to_string()),
                                 needs_quotes: false,
                             },
-                            Param {
-                                name: "X-Request-ID".to_string(),
-                                param_type: "string".to_string(),
-                                required: false,
+                            Property {
+                                key: "X-Request-ID".to_string(),
+                                value: "string".to_string(),
+                                is_required: false,
                                 description: Some("请求追踪ID".to_string()),
                                 needs_quotes: false,
                             },
@@ -604,10 +550,9 @@ mod tests {
                     }),
                     body: None,
                     file: None,
-                    response: Response::Reference("ProductDetail".to_string()),
+                    response: InlineOrRefParams::Reference("ProductDetail".to_string()),
                     has_form_data: false,
                     has_path_variables: true,
-                    has_api_prefix: true,
                 },
                 // 示例8: GET 请求，使用 Query 引用类型
                 ApiDefinition {
@@ -624,10 +569,9 @@ mod tests {
                     }),
                     body: None,
                     file: None,
-                    response: Response::Reference("ProductList".to_string()),
+                    response: InlineOrRefParams::Reference("ProductList".to_string()),
                     has_form_data: false,
                     has_path_variables: false,
-                    has_api_prefix: true,
                 },
             ],
         };
@@ -657,10 +601,10 @@ mod tests {
                 origin_path: "/api/users/{id}".to_string(),
                 params: Some(Params {
                     query: None,
-                    path: Some(InlineOrRefParams::Inline(vec![Param {
-                            name: "id".to_string(),
-                            param_type: "string".to_string(),
-                            required: true,
+                    path: Some(InlineOrRefParams::Inline(vec![Property {
+                            key: "id".to_string(),
+                            value: "string".to_string(),
+                            is_required: true,
                             description: Some("用户ID".to_string()),
                             needs_quotes: false,
                         },
@@ -669,10 +613,9 @@ mod tests {
                 }),
                 body: None,
                 file: None,
-                response: Response::Reference("User".to_string()),
+                response: InlineOrRefParams::Reference("User".to_string()),
                 has_form_data: false,
                 has_path_variables: true,
-                has_api_prefix: true,
             }],
         };
 

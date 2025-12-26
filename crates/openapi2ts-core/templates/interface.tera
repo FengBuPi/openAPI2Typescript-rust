@@ -41,6 +41,9 @@ declare namespace {{ namespace }} {
       {%- if type.enum_type_template == "enum" %}
         enum {{ type.type_name }} {
           {%- for value in type.values %}
+            {%- if value.description %}
+              /** {{ value.description }} */
+            {%- endif %}
             {%- if value.key %}
               {{ value.key }} = {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %},
             {%- else %}
@@ -51,6 +54,9 @@ declare namespace {{ namespace }} {
       {%- elif type.enum_type_template == "const_as_enum" %}
         const {{ type.type_name }}: {
           {%- for value in type.values %}
+            {%- if value.description %}
+              /** {{ value.description }} */
+            {%- endif %}
             {%- if value.key %}
               readonly {{ value.key }}: {% if type.basic_type == "string" %}"{{ value.value }}"{% else %}{{ value.value }}{% endif %},
             {%- else %}

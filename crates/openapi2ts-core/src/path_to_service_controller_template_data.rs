@@ -8,9 +8,8 @@ use crate::{
     generator_template::{
         interface_template_generator::Property,
         service_controller_template_generator::{
-            ApiDefinition, HttpMethod as TemplateHttpMethod, InlineOrRefParams, JsonContentType,
-            MediaTypeKind, Param, Params, RequestBody, RequestBodyType, Response,
-            ServiceControllerTemplateData,
+            ApiDefinition, HttpMethod as TemplateHttpMethod, InlineOrRefParams, MediaTypeKind, Params,
+            RequestBody, RequestBodyType, ServiceControllerTemplateData,
         },
     },
     utles::{
@@ -149,15 +148,13 @@ fn convert_operation_to_api_definition(
     let body = convert_request_body(&operation.request_body, namespace)?;
     // 转换响应
     let response = convert_responses(&operation.responses, namespace)?;
-    // 是否包含路径变量
+    // 是否包含路径变量：原始 OpenAPI path 中是否含有 `{var}` 形式
     let has_path_variables = path.contains('{');
-    // 是否包含表单数据
+    // 是否包含表单数据：请求体类型是否为 multipart/form-data 或 x-www-form-urlencoded
     let has_form_data = body
         .as_ref()
         .map(|b| b.body_type.is_form_data())
         .unwrap_or(false);
-    // 是否包含API前缀
-    let has_api_prefix = path.starts_with('/');
     let origin_path = match custom_url_path {
         Some(f) => f(path),
         None => path.to_string(),
@@ -181,7 +178,6 @@ fn convert_operation_to_api_definition(
         response,
         has_form_data,
         has_path_variables,
-        has_api_prefix,
     })
 }
 
@@ -258,10 +254,10 @@ fn convert_parameters(
                 // 检查参数名是否需要引号
                 let needs_quotes = !is_valid_typescript_identifier(&param_data.name);
 
-                let template_param = Param {
-                    name: param_data.name.clone(),
-                    param_type,
-                    required: param_data.required,
+                let template_param = Property {
+                    key: param_data.name.clone(),
+                    value: param_type,
+                    is_required: param_data.required,
                     description: param_data.description.clone(),
                     needs_quotes,
                 };
@@ -329,7 +325,7 @@ fn convert_request_body(
             } else {
                 // 没有 schema，默认使用 any 类型
                 RequestBodyType::Json {
-                    content: JsonContentType::Reference("any".to_string()),
+                    content: InlineOrRefParams::Reference("any".to_string()),
                 }
             };
 
@@ -345,7 +341,7 @@ fn convert_request_body(
             Ok(Some(RequestBody {
                 description: None,
                 body_type: RequestBodyType::Json {
-                    content: JsonContentType::Reference(type_name),
+                    content: InlineOrRefParams::Reference(type_name),
                 },
                 required: true,
             }))
@@ -359,7 +355,7 @@ fn convert_request_body(
 fn convert_responses(
     responses: &openapiv3::Responses,
     namespace: &str,
-) -> Result<Response, Box<dyn std::error::Error>> {
+) -> Result<InlineOrRefParams, Box<dyn std::error::Error>> {
     // 获取2xx的成功响应
     let success_response = responses
         .responses
@@ -373,7 +369,7 @@ fn convert_responses(
 
     let response_ref = match response_ref {
         Some(r) => r,
-        None => return Ok(Response::Reference("any".to_string())),
+        None => return Ok(InlineOrRefParams::Reference("any".to_string())),
     };
 
     match response_ref {
@@ -381,18 +377,18 @@ fn convert_responses(
             match response.content.get(MediaTypeKind::ApplicationJson.as_str()) {
                 Some(media_type_obj) => {
                     if let Some(schema) = &media_type_obj.schema {
-                        return Ok(Response::Reference(extract_response_type_from_schema(schema, namespace)?))
+                        return Ok(InlineOrRefParams::Reference(extract_response_type_from_schema(schema, namespace)?))
                     } else {
-                        return Ok(Response::Reference("any".to_string()));
+                        return Ok(InlineOrRefParams::Reference("any".to_string()));
                     }
                 }
-                None => return Ok(Response::Reference("any".to_string())),
+                None => return Ok(InlineOrRefParams::Reference("any".to_string())),
             } 
         }
         ReferenceOr::Reference { reference } => {
             let response_type = extract_type_name_from_ref(reference);
             let response_type = add_namespace_if_needed(response_type, namespace);
-            Ok(Response::Reference(response_type))
+            Ok(InlineOrRefParams::Reference(response_type))
         }
     }
 }
@@ -531,7 +527,7 @@ fn extract_param_type(
 }
 
 /// 创建 Query 参数（如果有）
-fn create_query_params(params: Vec<Param>) -> Option<InlineOrRefParams> {
+fn create_query_params(params: Vec<Property>) -> Option<InlineOrRefParams> {
     if params.is_empty() {
         None
     } else {
@@ -540,7 +536,7 @@ fn create_query_params(params: Vec<Param>) -> Option<InlineOrRefParams> {
 }
 
 /// 创建 Path 参数（如果有）
-fn create_path_params(params: Vec<Param>) -> Option<InlineOrRefParams> {
+fn create_path_params(params: Vec<Property>) -> Option<InlineOrRefParams> {
     if params.is_empty() {
         None
     } else {
@@ -549,7 +545,7 @@ fn create_path_params(params: Vec<Param>) -> Option<InlineOrRefParams> {
 }
 
 /// 创建 Header 参数（如果有）
-fn create_header_params(params: Vec<Param>) -> Option<Vec<Param>> {
+fn create_header_params(params: Vec<Property>) -> Option<Vec<Property>> {
     if params.is_empty() {
         None
     } else {
@@ -568,25 +564,24 @@ fn create_header_params(params: Vec<Param>) -> Option<Vec<Param>> {
 /// * `namespace` - TypeScript 类型命名空间
 ///
 /// # 返回值
-/// JsonContentType 枚举（Inline 或 Reference）
 fn convert_schema_to_json_content(
     schema: &ReferenceOr<openapiv3::Schema>,
     namespace: &str,
-) -> Result<JsonContentType, Box<dyn std::error::Error>> {
+) -> Result<InlineOrRefParams, Box<dyn std::error::Error>> {
     match schema {
         ReferenceOr::Item(_) => {
             // 尝试提取 properties
             if let Some(properties) = convert_schema_to_properties(schema)? {
-                Ok(JsonContentType::Inline { properties })
+                Ok(InlineOrRefParams::Inline(properties))
             } else {
                 // 如果没有提取到 properties，使用 any 引用类型
-                Ok(JsonContentType::Reference("any".to_string()))
+                Ok(InlineOrRefParams::Reference("any".to_string()))
             }
         }
         ReferenceOr::Reference { reference } => {
             let type_name = extract_type_name_from_ref(reference);
             let type_name = add_namespace_if_needed(type_name, namespace);
-            Ok(JsonContentType::Reference(type_name))
+            Ok(InlineOrRefParams::Reference(type_name))
         }
     }
 }
@@ -693,7 +688,7 @@ fn convert_schema_to_properties(
                         key: key.clone(),
                         value,
                         is_required: object_type.required.contains(key),
-                        desc,
+                        description: desc,
                         needs_quotes,
                     });
                 }

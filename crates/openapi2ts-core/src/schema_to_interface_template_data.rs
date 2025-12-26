@@ -342,7 +342,7 @@ fn convert_array_type(
                     key: "items".to_string(),
                     value: format!("{}[]", extract_type_name_from_ref(reference.as_str())),
                     is_required: true,
-                    desc: None,
+                    description: None,
                     needs_quotes: false,
                 };
                 props.push(property);
@@ -354,7 +354,7 @@ fn convert_array_type(
             key: "items".to_string(),
             value: "any[]".to_string(),
             is_required: true,
-            desc: None,
+            description: None,
             needs_quotes: false,
         };
         props.push(property);
@@ -385,7 +385,7 @@ fn convert_enum_values(
             values.push(EnumValue {
                 key: None,
                 value: value.clone(),
-                desc: None,
+                description: None,
             });
         }
     }
@@ -407,7 +407,7 @@ fn convert_integer_enum_values(
             values.push(EnumValue {
                 key: None,
                 value: value_str,
-                desc: None,
+                description: None,
             });
         }
     }
@@ -429,7 +429,7 @@ fn convert_number_enum_values(
             values.push(EnumValue {
                 key: None,
                 value: value_str,
-                desc: None,
+                description: None,
             });
         }
     }
@@ -473,7 +473,7 @@ fn convert_property(
         key,
         value,
         is_required,
-        desc,
+        description: desc,
         needs_quotes,
     })
 }

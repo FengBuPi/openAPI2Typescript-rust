@@ -13,8 +13,13 @@ pub struct Property {
     pub key: String,
     pub value: String,
     pub is_required: bool,
-    pub desc: Option<String>,
+    pub description: Option<String>,
     /// 属性名是否需要单引号包裹（当属性名不符合 JS/TS 标识符规范时为 true）
+    /// 例如：
+    ///  /** 一个带短横线的参数 */
+    ///  'a-b': string;
+    ///  /** 一个可能需要引号的保留字参数 */
+    ///  'default'?: string;
     #[serde(rename = "needsQuotes")]
     pub needs_quotes: bool,
 }
@@ -25,7 +30,7 @@ pub struct EnumValue {
     /// 使用联合类型模版时，会忽略key
     pub key: Option<String>,
     pub value: String,
-    pub desc: Option<String>,
+    pub description: Option<String>,
 }
 
 /// 对象类型的模板
@@ -272,12 +277,12 @@ mod tests {
                     EnumValue {
                         key: Some("ON".to_string()),
                         value: "ON".to_string(),
-                        desc: None,
+                        description: None,
                     },
                     EnumValue {
                         key: Some("OFF".to_string()),
                         value: "OFF".to_string(),
-                        desc: None,
+                        description: None,
                     },
                 ],
                 enum_type_template: EnumTypeTemplate::Enum,
@@ -290,12 +295,12 @@ mod tests {
                     EnumValue {
                         key: None,
                         value: "ON".to_string(),
-                        desc: None,
+                        description: None,
                     },
                     EnumValue {
                         key: None,
                         value: "OFF".to_string(),
-                        desc: None,
+                        description: None,
                     },
                 ],
                 enum_type_template: EnumTypeTemplate::Union,
@@ -308,14 +313,14 @@ mod tests {
                         key: "id".to_string(),
                         value: "string".to_string(),
                         is_required: true,
-                        desc: None,
+                        description: None,
                         needs_quotes: false,
                     },
                     Property {
                         key: "name".to_string(),
                         value: "string".to_string(),
                         is_required: false,
-                        desc: None,
+                        description: None,
                         needs_quotes: false,
                     },
                 ],
