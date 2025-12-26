@@ -1,6 +1,6 @@
 // @ts-ignore
 /* eslint-disable */
-// 该文件请使用 pnpm gen:api 运行生成
+// 该文件请使用 npx openapi2ts-wasm 运行生成
 // 如果需要扩展类型请在同级目录下的 api-extend.d.ts 文件进行扩展
 // generateTime: {{ time }}
 {{ requestImportStatement }}
@@ -24,7 +24,7 @@
                   {% if param.description -%}
                     /** {{ param.description }} */
                   {% endif -%}
-                  {% if param.needsQuotes -%}'{% endif -%}{{ param.name }}{% if param.needsQuotes -%}'{% endif -%}{%- if not param.required -%}?{%- endif -%}: {{ param.paramType }};
+                  {% if param.needsQuotes -%}'{% endif -%}{{ param.key }}{% if param.needsQuotes -%}'{% endif -%}{%- if not param.is_required -%}?{%- endif -%}: {{ param.value }};
                 {%- endfor -%}
               {%- endif -%}
               {#- Path 参数 -#}
@@ -33,7 +33,7 @@
                   {% if param.description -%}
                     /** {{ param.description }} */
                   {% endif -%}
-                  {% if param.needsQuotes -%}'{% endif -%}{{ param.name }}{% if param.needsQuotes -%}'{% endif -%}: {{ param.paramType }};
+                  {% if param.needsQuotes -%}'{% endif -%}{{ param.key }}{% if param.needsQuotes -%}'{% endif -%}: {{ param.value }};
                 {%- endfor -%}
               {%- endif -%}
             }
@@ -53,9 +53,9 @@
               {% if param.description -%}
                 /** {{ param.description }} */
               {% endif -%}
-              {% if param.needsQuotes -%}'{% endif -%}{{ param.name }}{% if param.needsQuotes -%}'{% endif -%}
-              {%- if not param.required -%}?{%- endif -%}
-              : {{ param.paramType }};
+              {% if param.needsQuotes -%}'{% endif -%}{{ param.key }}{% if param.needsQuotes -%}'{% endif -%}
+              {%- if not param.is_required -%}?{%- endif -%}
+              : {{ param.value }};
             {% endfor -%}
             }
           {%- endif -%}
@@ -71,9 +71,9 @@
         : {% if api.body.type.body_type == "json" %}
           {%- if api.body.type.content_type == "inline" -%}
             {
-            {%- for prop in api.body.type.value.properties %}
-              {% if prop.desc -%}
-                /** {{ prop.desc }} */
+            {%- for prop in api.body.type.value %}
+              {% if prop.description -%}
+                /** {{ prop.description }} */
               {% endif -%}
               {{ prop.key }}{%- if not prop.is_required -%}?{%- endif -%}: {{ prop.value }},
             {%- endfor %}
@@ -86,8 +86,8 @@
         {%- elif api.body.type.body_type == "form_data" or api.body.type.body_type == "form_urlencoded" -%}
           {
           {%- for prop in api.body.type.properties %}
-            {% if prop.desc -%}
-              /** {{ prop.desc }} */
+            {% if prop.description -%}
+              /** {{ prop.description }} */
             {% endif -%}
             {{ prop.key }}{%- if not prop.is_required -%}?{%- endif -%}: {{ prop.value }},
           {%- endfor %}
@@ -119,7 +119,7 @@
     {#- 参数解构：将path参数从params中解构出来，剩余参数作为queryParams -#}
     {% if api.params and api.params.path -%}
       {% if api.params.path.params_type == "inline" -%}
-        const { {% for param in api.params.path.value %}{{ param.name }}, {% endfor %}
+        const { {% for param in api.params.path.value %}{{ param.key }}, {% endfor %}
         {% if api.params.path.value -%}
           ...queryParams
         {% endif -%}

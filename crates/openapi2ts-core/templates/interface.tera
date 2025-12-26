@@ -1,6 +1,6 @@
 // @ts-ignore
 /* eslint-disable */
-// 该文件请使用 pnpm gen:api 运行生成
+// 该文件请使用 npx openapi2ts-wasm 运行生成
 // 如果需要扩展类型请在同级目录下的 api-extend.d.ts 文件进行扩展
 // generateTime: {{ time }}
 declare namespace {{ namespace }} {
@@ -15,8 +15,8 @@ declare namespace {{ namespace }} {
       {%- if type.object_type_template == "interface" %}
         interface {{ type.type_name }} {
           {%- for prop in type.props %}
-            {%- if prop.desc %}
-              /** {{ prop.desc }} */
+            {%- if prop.description %}
+              /** {{ prop.description }} */
             {%- endif %}
             {%- if prop.is_required %}
               {% if prop.needsQuotes -%}'{% endif -%}{{ prop.key }}{% if prop.needsQuotes -%}'{% endif -%}: {{ prop.value }};
@@ -28,8 +28,8 @@ declare namespace {{ namespace }} {
       {%- elif type.object_type_template == "type" %}
         type {{ type.type_name }} = {
           {%- for prop in type.props %}
-            {%- if prop.desc %}
-              /** {{ prop.desc }} */
+            {%- if prop.description %}
+              /** {{ prop.description }} */
             {%- endif %}
             {% if prop.needsQuotes -%}'{% endif -%}{{ prop.key }}{% if prop.needsQuotes -%}'{% endif -%}: {{ prop.value }};
           {%- endfor %}
