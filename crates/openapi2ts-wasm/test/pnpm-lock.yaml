@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       openapi2ts-wasm:
-        specifier: file:../crates/openapi2ts-wasm/npm
-        version: file:../crates/openapi2ts-wasm/npm
+        specifier: file:../npm
+        version: file:../npm
 
 packages:
 
@@ -146,8 +146,8 @@ packages:
   oas-validator@5.0.8:
     resolution: {integrity: sha512-cu20/HE5N5HKqVygs3dt94eYJfBi0TsZvPVXDhbXQHiEityDN+RROTleefoKRKKJ9dFAF2JBkDHgvWj0sjKGmw==}
 
-  openapi2ts-wasm@file:../crates/openapi2ts-wasm/npm:
-    resolution: {directory: ../crates/openapi2ts-wasm/npm, type: directory}
+  openapi2ts-wasm@file:../npm:
+    resolution: {directory: ../npm, type: directory}
     hasBin: true
 
   parent-module@1.0.1:
@@ -354,7 +354,7 @@ snapshots:
       should: 13.2.3
       yaml: 1.10.2
 
-  openapi2ts-wasm@file:../crates/openapi2ts-wasm/npm:
+  openapi2ts-wasm@file:../npm:
     dependencies:
       cosmiconfig: 9.0.0
       swagger2openapi: 7.0.8
