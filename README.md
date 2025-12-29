@@ -158,7 +158,7 @@ cargo test
 
 | 属性 | 类型 | 说明 | 当前支持情况 |
 |------|------|------|------|
-| afterOpenApiDataInited | (openAPIData: OpenAPIObject) => OpenAPIObject | OpenAPI 数据初始化后的钩子 | 即将支持 |
+| afterOpenApiDataInited | (openAPIData: OpenAPIObject) => OpenAPIObject | OpenAPI 数据初始化后的钩子 | 1.0 |
 | customFunctionName | (data: APIDataType) => string | 自定义请求方法函数名称 | 即将支持 |
 | customTypeName | (data: APIDataType) => string | 自定义类型名称 | 即将支持 |
 | customClassName | (tagName: string) => string | 自定义类名 | 即将支持 |

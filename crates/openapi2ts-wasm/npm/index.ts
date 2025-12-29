@@ -68,7 +68,10 @@ async function openapi2ts(configPath: filePath, config: Config) {
   if (config.isSwagger) {
     openapiJson = await swaggerToOpenapi(JSON.parse(openapiJson));
   }
-
+  // 调用OpenAPI数据初始化后的钩子
+  if (config.afterOpenApiDataInited) {  
+    openapiJson = JSON.stringify(config.afterOpenApiDataInited(JSON.parse(openapiJson)));
+  }
   try {
     console.log('开始转换OpenAPI到TypeScript...');
     const generatedCode = await openapi2tsWasm(openapiJson, config);
