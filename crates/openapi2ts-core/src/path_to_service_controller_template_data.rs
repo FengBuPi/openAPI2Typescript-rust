@@ -36,12 +36,15 @@ pub fn openapi_to_service_controller_template_data_group_list(
     openapi: &OpenAPI,
     config: &Config,
 ) -> Result<HashMap<String, ServiceControllerTemplateData>, Box<dyn std::error::Error>> {
-    let gen_type = "ts";
-    let request_import_statement = config.request_import_statement.as_str();
-    let namespace = config.namespace.as_str();
-    let request_options_type = config.request_options_type.as_str();
-    let custom_url_path: Option<&dyn Fn(&str) -> String> = config
-        .custom_url_path
+    let Config {
+        request_import_statement,
+        namespace,
+        request_options_type,
+        custom_url_path,
+        ..
+    } = config;
+
+    let custom_url_path: Option<&dyn Fn(&str) -> String> = custom_url_path
         .as_deref()
         .map(|f| f as &dyn Fn(&str) -> String);
 
@@ -83,7 +86,6 @@ pub fn openapi_to_service_controller_template_data_group_list(
                 ServiceControllerTemplateData {
                     request_import_statement: request_import_statement.to_string(),
                     namespace: namespace.to_string(),
-                    gen_type: gen_type.to_string(),
                     request_options_type: request_options_type.to_string(),
                     list: vec![api_definition],
                 },

@@ -253,7 +253,6 @@ pub struct ApiDefinition {
 pub struct ServiceControllerTemplateData {
     pub request_import_statement: String,
     pub namespace: String,
-    pub gen_type: String,
     pub request_options_type: String,
     pub list: Vec<ApiDefinition>,
 }
@@ -278,7 +277,6 @@ pub fn generate_service_controller_typescript_string(
         &template_data.request_import_statement,
     );
     context.insert("namespace", &template_data.namespace);
-    context.insert("gen_type", &template_data.gen_type);
     context.insert("request_options_type", &template_data.request_options_type);
     context.insert("list", &template_data.list);
     context.insert(
@@ -300,7 +298,6 @@ mod tests {
             request_import_statement: "import request, { RequestOptions } from '@/utils/request';"
                 .to_string(),
             namespace: "MyAPI".to_string(),
-            gen_type: "ts".to_string(),
             request_options_type: "RequestOptions".to_string(),
             list: vec![
                 // 示例1: GET 请求，带路径参数
@@ -591,7 +588,6 @@ mod tests {
             request_import_statement:
                 "import axios, { AxiosRequestConfig as RequestOptions } from 'axios';".to_string(),
             namespace: "MyAPI".to_string(),
-            gen_type: "ts".to_string(),
             request_options_type: "RequestOptions".to_string(),
             list: vec![ApiDefinition {
                 function_name: "getUserById".to_string(),
@@ -625,7 +621,6 @@ mod tests {
             &template_data.request_import_statement,
         );
         context.insert("namespace", &template_data.namespace);
-        context.insert("gen_type", &template_data.gen_type);
         context.insert("request_options_type", &template_data.request_options_type);
         context.insert("list", &template_data.list);
         context.insert("time", "2020-01-01 00:00:00");
