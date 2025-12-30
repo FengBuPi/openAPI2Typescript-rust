@@ -4,6 +4,7 @@ use heck::ToPascalCase;
 use openapiv3::{OpenAPI, Operation, Parameter, ReferenceOr};
 
 use crate::{
+    Config,
     utles::tag_to_file_name,
     generator_template::{
         interface_template_generator::Property,
@@ -33,12 +34,17 @@ use crate::{
 /// * `Err(Box<dyn std::error::Error>)` - 转换过程中的错误
 pub fn openapi_to_service_controller_template_data_group_list(
     openapi: &OpenAPI,
-    request_import_statement: &str,
-    namespace: &str,
-    gen_type: &str,
-    request_options_type: &str,
-    custom_url_path: Option<&dyn Fn(&str) -> String>,
+    config: &Config,
 ) -> Result<HashMap<String, ServiceControllerTemplateData>, Box<dyn std::error::Error>> {
+    let gen_type = "ts";
+    let request_import_statement = config.request_import_statement.as_str();
+    let namespace = config.namespace.as_str();
+    let request_options_type = config.request_options_type.as_str();
+    let custom_url_path: Option<&dyn Fn(&str) -> String> = config
+        .custom_url_path
+        .as_deref()
+        .map(|f| f as &dyn Fn(&str) -> String);
+
     // 使用 HashMap 来按 tag 分组，避免重复创建 ApiGroup
     let mut tag_groups: std::collections::HashMap<String, ServiceControllerTemplateData> =
         std::collections::HashMap::new();

@@ -77,11 +77,7 @@ fn generate_service_controllers(
     let service_controller_template_data_group_list =
         path_to_service_controller_template_data::openapi_to_service_controller_template_data_group_list(
             &openapi_content,
-            &config.request_lib_path,
-            &config.namespace,
-            "ts",
-            "AxiosRequestConfig",
-            None,
+            config,
         )?;
 
     for (tag, service_controller_template_data) in service_controller_template_data_group_list {

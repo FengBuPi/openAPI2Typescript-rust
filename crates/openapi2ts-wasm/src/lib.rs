@@ -20,7 +20,149 @@ pub fn main() {
     console::log_1(&"OpenAPI2TypeScript WASM模块已加载".into());
 }
 
-pub fn generate_types(openapi_content: &OpenAPI, config: &WasmConfig) -> Result<(), Box<dyn std::error::Error>> {
+pub fn wasm_config_to_core_config(wasm_config: &WasmConfig) -> openapi2ts_core::Config {
+    #[cfg(target_arch = "wasm32")]
+    let after_open_api_data_inited = {
+        let f = wasm_config.after_open_api_data_inited.clone();
+        Some(Box::new(move |data: &str| {
+            f.call1(&JsValue::NULL, &JsValue::from_str(data))
+                .unwrap()
+                .as_string()
+                .unwrap()
+        }) as openapi2ts_core::StringHook)
+    };
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let after_open_api_data_inited: Option<openapi2ts_core::StringHook> = None;
+
+    #[cfg(target_arch = "wasm32")]
+    let custom_function_name = {
+        let f = wasm_config.custom_function_name.clone();
+        Some(Box::new(move |data: &str| {
+            f.call1(&JsValue::NULL, &JsValue::from_str(data))
+                .unwrap()
+                .as_string()
+                .unwrap()
+        }) as openapi2ts_core::StringHook)
+    };
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let custom_function_name: Option<openapi2ts_core::StringHook> = None;
+
+    #[cfg(target_arch = "wasm32")]
+    let custom_type_name = {
+        let f = wasm_config.custom_type_name.clone();
+        Some(Box::new(move |data: &str| {
+            f.call1(&JsValue::NULL, &JsValue::from_str(data))
+                .unwrap()
+                .as_string()
+                .unwrap()
+        }) as openapi2ts_core::StringHook)
+    };
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let custom_type_name: Option<openapi2ts_core::StringHook> = None;
+
+    #[cfg(target_arch = "wasm32")]
+    let custom_class_name = {
+        let f = wasm_config.custom_class_name.clone();
+        Some(Box::new(move |data: &str| {
+            f.call1(&JsValue::NULL, &JsValue::from_str(data))
+                .unwrap()
+                .as_string()
+                .unwrap()
+        }) as openapi2ts_core::StringHook)
+    };
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let custom_class_name: Option<openapi2ts_core::StringHook> = None;
+
+    #[cfg(target_arch = "wasm32")]
+    let custom_type = {
+        let f = wasm_config.custom_type.clone();
+        Some(Box::new(move |data: &str| {
+            f.call1(&JsValue::NULL, &JsValue::from_str(data))
+                .unwrap()
+                .as_string()
+                .unwrap()
+        }) as openapi2ts_core::StringHook)
+    };
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let custom_type: Option<openapi2ts_core::StringHook> = None;
+
+    #[cfg(target_arch = "wasm32")]
+    let custom_file_names = {
+        let f = wasm_config.custom_file_names.clone();
+        Some(Box::new(move |data: &str| {
+            f.call1(&JsValue::NULL, &JsValue::from_str(data))
+                .unwrap()
+                .as_string()
+                .unwrap()
+        }) as openapi2ts_core::StringHook)
+    };
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let custom_file_names: Option<openapi2ts_core::StringHook> = None;
+
+    #[cfg(target_arch = "wasm32")]
+    let custom_url_path = {
+        let f = wasm_config.custom_url_path.clone();
+        Some(Box::new(move |api_path: &str| {
+            f.call1(&JsValue::NULL, &JsValue::from_str(api_path))
+                .unwrap()
+                .as_string()
+                .unwrap()
+        }) as openapi2ts_core::StringHook)
+    };
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let custom_url_path: Option<openapi2ts_core::StringHook> = None;
+
+    #[cfg(target_arch = "wasm32")]
+    let fileter_gen_api_fn = {
+        let f = wasm_config.fileter_gen_api_fn.clone();
+        Some(Box::new(move |data: &str| {
+            f.call1(&JsValue::NULL, &JsValue::from_str(data))
+                .unwrap()
+                .as_string()
+                .unwrap()
+        }) as openapi2ts_core::StringHook)
+    };
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let fileter_gen_api_fn: Option<openapi2ts_core::StringHook> = None;
+
+    openapi2ts_core::Config {
+        api_prefix: wasm_config.api_prefix.clone(),
+        namespace: wasm_config.namespace.clone(),
+        is_swagger: wasm_config.is_swagger,
+        is_camel_case: wasm_config.is_camel_case,
+        nullable: wasm_config.nullable,
+        declare_type: wasm_config.declare_type.clone(),
+        enum_style: wasm_config.enum_style.clone(),
+        project_name: wasm_config.project_name.clone(),
+        schema_path: wasm_config.schema_path.clone(),
+        servers_path: wasm_config.servers_path.clone(),
+        request_import_statement: wasm_config.request_import_statement.clone(),
+        request_lib_path: wasm_config.request_lib_path.clone(),
+        request_options_type: wasm_config.request_options_type.clone(),
+        split_declare: wasm_config.split_declare,
+        after_open_api_data_inited,
+        custom_function_name,
+        custom_type_name,
+        custom_class_name,
+        custom_type,
+        custom_file_names,
+        custom_url_path,
+        fileter_gen_api_fn,
+    }
+}
+
+pub fn generate_types(
+    openapi_content: &OpenAPI,
+    config: &openapi2ts_core::Config,
+) -> Result<(), Box<dyn std::error::Error>> {
     // 将 OpenAPI 规范转换为类型模板数据列表
     let template_data_list =
         schema_to_interface_template_data::openapi_to_interface_template_data_list(
@@ -44,15 +186,14 @@ pub fn generate_types(openapi_content: &OpenAPI, config: &WasmConfig) -> Result<
     Ok(())
 }
 
-pub fn generate_service_controllers(openapi_content: &OpenAPI, config: &WasmConfig) -> Result<(), Box<dyn std::error::Error>>{
+pub fn generate_service_controllers(
+    openapi_content: &OpenAPI,
+    config: &openapi2ts_core::Config,
+) -> Result<(), Box<dyn std::error::Error>> {
     let service_controller_template_data_group_list =
         path_to_service_controller_template_data::openapi_to_service_controller_template_data_group_list(
             &openapi_content,
-            &config.request_lib_path,
-            &config.namespace,
-            "ts",
-            "AxiosRequestConfig",
-            Some(&|s: &str| config.call_custom_url_path(s)),
+            config,
         )?;
 
     for (tag, service_controller_template_data) in service_controller_template_data_group_list {
@@ -64,7 +205,10 @@ pub fn generate_service_controllers(openapi_content: &OpenAPI, config: &WasmConf
     Ok(())
 }
 
-pub fn generate_service_index(openapi_content: &OpenAPI, config: &WasmConfig) -> Result<(), Box<dyn std::error::Error>>{
+pub fn generate_service_index(
+    openapi_content: &OpenAPI,
+    config: &openapi2ts_core::Config,
+) -> Result<(), Box<dyn std::error::Error>> {
     let service_index_template_data_list =
         path_to_service_index_template_data::openapi_to_service_index_template_data_list(
             &openapi_content,
@@ -88,19 +232,20 @@ pub fn generate_service_index(openapi_content: &OpenAPI, config: &WasmConfig) ->
 #[wasm_bindgen]
 // 暴露给前端的main函数，返回是否成功
 pub async fn openapi2ts(openapi_json: String, js_config: &JsValue) -> Result<bool, JsValue> {
-    let config: WasmConfig = WasmConfig::from_js_object(js_config);
+    let wasm_config: WasmConfig = WasmConfig::from_js_object(js_config);
 
     let openapi_content: openapiv3::OpenAPI = serde_json::from_str(&openapi_json).expect("解析 OpenAPI JSON 失败, 检查是否是 swagger 格式的json, 如果是请设置isSwagger为true");
-
     console::log_1(&format!("当前 OpenAPI 版本: {:?}", openapi_content.openapi).into());
+    // 将 wasm 配置转换为 core 配置
+    let core_config = wasm_config_to_core_config(&wasm_config);  
     // --------------------------- 将 OpenAPI 规范转换为类型模板数据列表 -------------------------
-    generate_types(&openapi_content, &config).map_err(|e| JsValue::from_str(&format!("转换为类型模板数据失败: {:?}", e))).unwrap();
+    generate_types(&openapi_content, &core_config).map_err(|e| JsValue::from_str(&format!("转换为类型模板数据失败: {:?}", e))).unwrap();
 
     // --------------------------- 将 OpenAPI 规范转换为接口模板数据列表 --------------------------
-    generate_service_controllers(&openapi_content, &config).map_err(|e| JsValue::from_str(&format!("转换为接口模板失败: {:?}", e))).unwrap();
+    generate_service_controllers(&openapi_content, &core_config).map_err(|e| JsValue::from_str(&format!("转换为接口模板失败: {:?}", e))).unwrap();
 
     // --------------------------- 将 OpenAPI 规范转换为服务索引模板数据列表 ------------------------
-    generate_service_index(&openapi_content, &config).map_err(|e| JsValue::from_str(&format!("转换为服务索引模板失败: {:?}", e))).unwrap();
+    generate_service_index(&openapi_content, &core_config).map_err(|e| JsValue::from_str(&format!("转换为服务索引模板失败: {:?}", e))).unwrap();
 
     Ok(true)
 }

@@ -114,7 +114,7 @@
     {#- 参数分隔符：如果有任何参数，添加逗号 -#}
     {%- if api.body or api.params or api.file -%},{%- endif -%}
     {#- 请求选项参数 -#}
-    options {%- if gen_type == "ts" -%}?: {{ request_options_type }}{%- endif -%}
+    options{%- if gen_type == "ts" -%}?: {{ request_options_type }}{%- endif -%}
   ) {
     {#- 参数解构：将path参数从params中解构出来，剩余参数作为queryParams -#}
     {% if api.params and api.params.path -%}
