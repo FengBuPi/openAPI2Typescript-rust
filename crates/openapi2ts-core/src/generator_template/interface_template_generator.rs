@@ -149,7 +149,7 @@ pub fn generate_typescript_types_string(
 mod tests {
     use openapiv3::OpenAPI;
 
-    use crate::schema_to_interface_template_data;
+    use crate::{schema_to_interface_template_data, Config};
 
     use super::*;
 
@@ -168,6 +168,7 @@ mod tests {
         let template_data_list =
             schema_to_interface_template_data::openapi_to_interface_template_data_list(
                 &openapi_spec,
+                &Config::default(),
             )?;
 
         let template_data = TemplateData {
@@ -213,6 +214,7 @@ mod tests {
         let template_data_list =
             schema_to_interface_template_data::openapi_to_interface_template_data_list(
                 &openapi_spec,
+                &Config::default(),
             )?;
 
         let template_data = TemplateData {

@@ -1,8 +1,11 @@
-use crate::generator_template::interface_template_generator::{
-    BasicType, EnumTypeTemplate, EnumValue, ObjectTypeTemplate, Property, TypeDefinition,
-};
-use crate::utles::{
-    extract_type_name_from_ref, get_typescript_type_string, is_valid_typescript_identifier,
+use crate::{
+    generator_template::interface_template_generator::{
+        BasicType, EnumTypeTemplate, EnumValue, ObjectTypeTemplate, Property, TypeDefinition,
+    },
+    utles::{
+        extract_type_name_from_ref_with_hook, get_typescript_type_string, is_valid_typescript_identifier,
+    },
+    Config, StringHook,
 };
 use indexmap::IndexMap;
 use openapiv3::{OpenAPI, ReferenceOr, Schema};
@@ -31,14 +34,17 @@ use openapiv3::{OpenAPI, ReferenceOr, Schema};
 /// 4. 收集所有转换结果并返回
 pub fn openapi_to_interface_template_data_list(
     openapi: &OpenAPI,
+    config: &Config,
 ) -> Result<Vec<TypeDefinition>, Box<dyn std::error::Error>> {
     let mut type_definitions = Vec::new();
+    let custom_type_name = config.custom_type_name.as_ref();
 
     // 从 OpenAPI.components.schemas 中提取所有模式定义
     if let Some(components) = &openapi.components {
         for (schema_name, schema_ref) in &components.schemas {
             // 将每个 schema 转换为 TypeDefinition
-            let type_definition = convert_schema_to_type_definition(schema_name, schema_ref)?;
+            let type_definition =
+                convert_schema_to_type_definition(schema_name, schema_ref, custom_type_name)?;
             type_definitions.push(type_definition);
         }
     }
@@ -71,9 +77,10 @@ pub fn openapi_to_interface_template_data_list(
 fn convert_schema_to_type_definition(
     schema_key: &str,
     schema_value: &ReferenceOr<Schema>,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<TypeDefinition, Box<dyn std::error::Error>> {
     // 生成类型名称（PascalCase 格式）
-    let type_name = extract_type_name_from_ref(schema_key);
+    let type_name = extract_type_name_from_ref_with_hook(schema_key, custom_type_name);
 
     match schema_value {
         // 处理内联定义的 Schema
@@ -83,7 +90,12 @@ fn convert_schema_to_type_definition(
             match &schema.schema_kind {
                 // 转换成ts 基本数据类型
                 openapiv3::SchemaKind::Type(type_kind) => {
-                    convert_typed_schema(&type_name, type_kind, &schema.schema_data.description)
+                    convert_typed_schema(
+                        &type_name,
+                        type_kind,
+                        &schema.schema_data.description,
+                        custom_type_name,
+                    )
                 }
                 // 转换成ts联合类型
                 // {
@@ -155,6 +167,7 @@ fn convert_schema_to_type_definition(
                         &any_schema.properties,
                         &any_schema.required,
                         &description,
+                        custom_type_name,
                     )
                 }
             }
@@ -185,11 +198,18 @@ fn convert_typed_schema(
     type_name: &str,
     type_kind: &openapiv3::Type,
     description: &Option<String>,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<TypeDefinition, Box<dyn std::error::Error>> {
     match type_kind {
         // 对象类型转换
         openapiv3::Type::Object(object_type) => {
-            convert_object_type(type_name, &object_type.properties, &object_type.required, description)
+            convert_object_type(
+                type_name,
+                &object_type.properties,
+                &object_type.required,
+                description,
+                custom_type_name,
+            )
         }
         // 字符串类型转换
         openapiv3::Type::String(string_type) => {
@@ -211,7 +231,7 @@ fn convert_typed_schema(
         }),
         // 数组类型转换
         openapiv3::Type::Array(array_type) => {
-            convert_array_type(type_name, array_type, description)
+            convert_array_type(type_name, array_type, description, custom_type_name)
         }
     }
 }
@@ -222,6 +242,7 @@ fn convert_object_type(
     properties: &IndexMap<String, ReferenceOr<Box<Schema>>>,
     required: &[String],
     description: &Option<String>,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<TypeDefinition, Box<dyn std::error::Error>> {
     let mut props = Vec::new();
 
@@ -234,7 +255,12 @@ fn convert_object_type(
 
         let is_required = required.contains(prop_name);
 
-        let property = convert_property(prop_name.as_str(), prop_schema_ref, is_required)?;
+        let property = convert_property(
+            prop_name.as_str(),
+            prop_schema_ref,
+            is_required,
+            custom_type_name,
+        )?;
         props.push(property);
     }
 
@@ -326,21 +352,29 @@ fn convert_array_type(
     type_name: &str,
     array_type: &openapiv3::ArrayType,
     description: &Option<String>,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<TypeDefinition, Box<dyn std::error::Error>> {
     let mut props = Vec::new();
 
     if let Some(items) = &array_type.items {
         match items {
             ReferenceOr::Item(schema) => {
-                let property =
-                    convert_property(type_name, &ReferenceOr::Item(schema.clone()), false)?;
+                let property = convert_property(
+                    type_name,
+                    &ReferenceOr::Item(schema.clone()),
+                    false,
+                    custom_type_name,
+                )?;
                 props.push(property);
             }
             ReferenceOr::Reference { reference } => {
                 // 引用类型
                 let property = Property {
                     key: "items".to_string(),
-                    value: format!("{}[]", extract_type_name_from_ref(reference.as_str())),
+                    value: format!(
+                        "{}[]",
+                        extract_type_name_from_ref_with_hook(reference.as_str(), custom_type_name)
+                    ),
                     is_required: true,
                     description: None,
                     needs_quotes: false,
@@ -457,11 +491,12 @@ fn convert_property(
     prop_name: &str,
     prop_schema_ref: &ReferenceOr<Box<Schema>>,
     is_required: bool,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<Property, Box<dyn std::error::Error>> {
     let key = prop_name.to_string();
     let needs_quotes = !is_valid_typescript_identifier(prop_name);
     // 使用递归函数获取最终的 TypeScript 非对象类型
-    let value = get_typescript_type_string(prop_schema_ref)?;
+    let value = get_typescript_type_string(prop_schema_ref, custom_type_name)?;
 
     // 提取 description
     let desc = match prop_schema_ref {
@@ -508,7 +543,7 @@ mod tests {
             }"#,
         );
 
-        let list = openapi_to_interface_template_data_list(&openapi).unwrap();
+        let list = openapi_to_interface_template_data_list(&openapi, &Config::default()).unwrap();
         assert_eq!(list.len(), 1);
 
         match &list[0] {
@@ -541,7 +576,7 @@ mod tests {
             }"#,
         );
 
-        let list = openapi_to_interface_template_data_list(&openapi).unwrap();
+        let list = openapi_to_interface_template_data_list(&openapi, &Config::default()).unwrap();
         assert_eq!(list.len(), 1);
 
         match &list[0] {
@@ -588,7 +623,7 @@ mod tests {
             }"#,
         );
 
-        let list = openapi_to_interface_template_data_list(&openapi).unwrap();
+        let list = openapi_to_interface_template_data_list(&openapi, &Config::default()).unwrap();
         match &list[0] {
             TypeDefinition::Object { props, .. } => {
                 assert!(props.iter().all(|p| p.key != "class"));

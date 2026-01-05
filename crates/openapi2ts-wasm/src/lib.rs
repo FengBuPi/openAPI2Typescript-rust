@@ -60,7 +60,7 @@ pub fn wasm_config_to_core_config(wasm_config: &WasmConfig) -> openapi2ts_core::
             f.call1(&JsValue::NULL, &JsValue::from_str(data))
                 .unwrap()
                 .as_string()
-                .unwrap()
+                .unwrap_or_else(|| data.to_string())
         }) as openapi2ts_core::StringHook)
     };
 
@@ -171,6 +171,7 @@ pub fn generate_types(
     let template_data_list =
         schema_to_interface_template_data::openapi_to_interface_template_data_list(
             &openapi_content,
+            config,
         ).unwrap();
 
     let template_data = TemplateData {

@@ -4,7 +4,7 @@ use heck::ToPascalCase;
 use openapiv3::{OpenAPI, Operation, Parameter, ReferenceOr};
 
 use crate::{
-    Config,
+    Config, StringHook,
     utles::tag_to_file_name,
     generator_template::{
         interface_template_generator::Property,
@@ -14,7 +14,7 @@ use crate::{
         },
     },
     utles::{
-        extract_type_name_from_ref, get_typescript_type_string, is_typescript_builtin_type,
+        extract_type_name_from_ref_with_hook, get_typescript_type_string, is_typescript_builtin_type,
         is_valid_typescript_identifier,
     },
 };
@@ -146,8 +146,10 @@ fn convert_operation_to_api_definition(
         namespace,
         custom_url_path,
         custom_function_name,
+        custom_type_name,
         ..
     } = config;
+    let custom_type_name = custom_type_name.as_ref();
     // 生成函数名
     let function_name =  if let Some(f) = custom_function_name {
         f(method.to_string().as_str(), path)
@@ -156,11 +158,11 @@ fn convert_operation_to_api_definition(
         generate_function_name(method, path)
     };
     // 转换参数
-    let params = convert_parameters(&operation.parameters, namespace)?;
+    let params = convert_parameters(&operation.parameters, namespace, custom_type_name)?;
     // 转换请求体
-    let body = convert_request_body(&operation.request_body, namespace)?;
+    let body = convert_request_body(&operation.request_body, namespace, custom_type_name)?;
     // 转换响应
-    let response = convert_responses(&operation.responses, namespace)?;
+    let response = convert_responses(&operation.responses, namespace, custom_type_name)?;
     // 是否包含表单数据：请求体类型是否为 multipart/form-data 或 x-www-form-urlencoded
     let has_form_data = body
     .as_ref()
@@ -248,6 +250,7 @@ fn generate_function_name(method: &TemplateHttpMethod, path: &str) -> String {
 fn convert_parameters(
     parameters: &Vec<ReferenceOr<Parameter>>,
     namespace: &str,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<Option<Params>, Box<dyn std::error::Error>> {
     if parameters.is_empty() {
         return Ok(None);
@@ -263,7 +266,8 @@ fn convert_parameters(
                 let param_data = param.parameter_data_ref();
 
                 // 从 schema 中提取参数类型
-                let param_type = extract_param_type(&param_data.format, namespace)?;
+                let param_type =
+                    extract_param_type(&param_data.format, namespace, custom_type_name)?;
 
                 // 检查参数名是否需要引号
                 let needs_quotes = !is_valid_typescript_identifier(&param_data.name);
@@ -323,6 +327,7 @@ fn convert_parameters(
 fn convert_request_body(
     request_body: &Option<openapiv3::ReferenceOr<openapiv3::RequestBody>>,
     namespace: &str,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<Option<RequestBody>, Box<dyn std::error::Error>> {
     let body_ref = match request_body {
         Some(body) => body,
@@ -339,7 +344,13 @@ fn convert_request_body(
 
             let media_type = MediaTypeKind::from_str(media_type_str);
             let body_type = if let Some(schema) = &media_type_obj.schema {
-                convert_media_type_to_body_type(&media_type, media_type_str, schema, namespace)?
+                convert_media_type_to_body_type(
+                    &media_type,
+                    media_type_str,
+                    schema,
+                    namespace,
+                    custom_type_name,
+                )?
             } else {
                 // 没有 schema，默认使用 any 类型
                 RequestBodyType::Json {
@@ -354,7 +365,7 @@ fn convert_request_body(
             }))
         }
         ReferenceOr::Reference { reference } => {
-            let type_name = extract_type_name_from_ref(reference);
+            let type_name = extract_type_name_from_ref_with_hook(reference, custom_type_name);
             let type_name = add_namespace_if_needed(type_name, namespace);
             Ok(Some(RequestBody {
                 description: None,
@@ -373,6 +384,7 @@ fn convert_request_body(
 fn convert_responses(
     responses: &openapiv3::Responses,
     namespace: &str,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<InlineOrRefParams, Box<dyn std::error::Error>> {
     // 获取2xx的成功响应
     let success_response = responses
@@ -395,7 +407,13 @@ fn convert_responses(
             match response.content.get(MediaTypeKind::ApplicationJson.as_str()) {
                 Some(media_type_obj) => {
                     if let Some(schema) = &media_type_obj.schema {
-                        return Ok(InlineOrRefParams::Reference(extract_response_type_from_schema(schema, namespace)?))
+                        return Ok(InlineOrRefParams::Reference(
+                            extract_response_type_from_schema(
+                                schema,
+                                namespace,
+                                custom_type_name,
+                            )?,
+                        ))
                     } else {
                         return Ok(InlineOrRefParams::Reference("any".to_string()));
                     }
@@ -404,7 +422,8 @@ fn convert_responses(
             } 
         }
         ReferenceOr::Reference { reference } => {
-            let response_type = extract_type_name_from_ref(reference);
+            let response_type =
+                extract_type_name_from_ref_with_hook(reference, custom_type_name);
             let response_type = add_namespace_if_needed(response_type, namespace);
             Ok(InlineOrRefParams::Reference(response_type))
         }
@@ -524,6 +543,7 @@ fn add_namespace_if_needed(type_name: String, namespace: &str) -> String {
 fn extract_param_type(
     param_format: &openapiv3::ParameterSchemaOrContent,
     namespace: &str,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     match param_format {
         openapiv3::ParameterSchemaOrContent::Schema(schema_ref) => {
@@ -534,7 +554,7 @@ fn extract_param_type(
                 },
                 ReferenceOr::Item(schema) => ReferenceOr::Item(Box::new(schema.clone())),
             };
-            let type_name = get_typescript_type_string(&boxed_schema)?;
+            let type_name = get_typescript_type_string(&boxed_schema, custom_type_name)?;
             Ok(add_namespace_if_needed(type_name, namespace))
         }
         openapiv3::ParameterSchemaOrContent::Content(_content) => {
@@ -585,11 +605,12 @@ fn create_header_params(params: Vec<Property>) -> Option<Vec<Property>> {
 fn convert_schema_to_json_content(
     schema: &ReferenceOr<openapiv3::Schema>,
     namespace: &str,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<InlineOrRefParams, Box<dyn std::error::Error>> {
     match schema {
         ReferenceOr::Item(_) => {
             // 尝试提取 properties
-            if let Some(properties) = convert_schema_to_properties(schema)? {
+            if let Some(properties) = convert_schema_to_properties(schema, custom_type_name)? {
                 Ok(InlineOrRefParams::Inline(properties))
             } else {
                 // 如果没有提取到 properties，使用 any 引用类型
@@ -597,7 +618,7 @@ fn convert_schema_to_json_content(
             }
         }
         ReferenceOr::Reference { reference } => {
-            let type_name = extract_type_name_from_ref(reference);
+            let type_name = extract_type_name_from_ref_with_hook(reference, custom_type_name);
             let type_name = add_namespace_if_needed(type_name, namespace);
             Ok(InlineOrRefParams::Reference(type_name))
         }
@@ -629,24 +650,26 @@ fn convert_media_type_to_body_type(
     media_type_str: &str,
     schema: &ReferenceOr<openapiv3::Schema>,
     namespace: &str,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<RequestBodyType, Box<dyn std::error::Error>> {
     match media_type {
         MediaTypeKind::ApplicationJson => {
-            let content = convert_schema_to_json_content(schema, namespace)?;
+            let content = convert_schema_to_json_content(schema, namespace, custom_type_name)?;
             Ok(RequestBodyType::Json { content })
         }
         MediaTypeKind::MultipartFormData => {
-            let properties = convert_schema_to_properties(schema)?.unwrap_or_default();
+            let properties = convert_schema_to_properties(schema, custom_type_name)?.unwrap_or_default();
             Ok(RequestBodyType::FormData { properties })
         }
         MediaTypeKind::ApplicationFormUrlencoded => {
-            let properties = convert_schema_to_properties(schema)?.unwrap_or_default();
+            let properties =
+                convert_schema_to_properties(schema, custom_type_name)?.unwrap_or_default();
             Ok(RequestBodyType::FormUrlEncoded { properties })
         }
         _ => {
             let type_ref = match schema {
                 ReferenceOr::Reference { reference } => {
-                    let type_name = extract_type_name_from_ref(reference);
+                    let type_name = extract_type_name_from_ref_with_hook(reference, custom_type_name);
                     add_namespace_if_needed(type_name, namespace)
                 }
                 ReferenceOr::Item(_) => "any".to_string(),
@@ -677,6 +700,7 @@ fn convert_media_type_to_body_type(
 /// * `Err(...)` - 转换失败
 fn convert_schema_to_properties(
     schema: &openapiv3::ReferenceOr<openapiv3::Schema>,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<Option<Vec<Property>>, Box<dyn std::error::Error>> {
     match schema {
         ReferenceOr::Item(schema) => match &schema.schema_kind {
@@ -688,11 +712,14 @@ fn convert_schema_to_properties(
                     let value = match prop_schema {
                         ReferenceOr::Reference { reference } => {
                             // 引用类型：直接使用类型名
-                            extract_type_name_from_ref(reference)
+                            extract_type_name_from_ref_with_hook(reference, custom_type_name)
                         }
                         ReferenceOr::Item(prop_box) => {
                             // 内联类型：递归转换，prop_box 已经是 Box<Schema>
-                            get_typescript_type_string(&ReferenceOr::Item(prop_box.clone()))?
+                            get_typescript_type_string(
+                                &ReferenceOr::Item(prop_box.clone()),
+                                custom_type_name,
+                            )?
                         }
                     };
 
@@ -736,15 +763,16 @@ fn is_success_status_code(code: &openapiv3::StatusCode) -> bool {
 fn extract_response_type_from_schema(
     schema: &ReferenceOr<openapiv3::Schema>,
     namespace: &str,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     match schema {
         ReferenceOr::Item(schema) => {
             let type_name =
-                get_typescript_type_string(&ReferenceOr::Item(Box::new(schema.clone())))?;
+                get_typescript_type_string(&ReferenceOr::Item(Box::new(schema.clone())), custom_type_name)?;
             Ok(add_namespace_if_needed(type_name, namespace))
         }
         ReferenceOr::Reference { reference } => {
-            let type_name = extract_type_name_from_ref(reference);
+            let type_name = extract_type_name_from_ref_with_hook(reference, custom_type_name);
             Ok(add_namespace_if_needed(type_name, namespace))
         }
     }

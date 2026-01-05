@@ -53,6 +53,7 @@ fn generate_types(
     let template_data_list =
         schema_to_interface_template_data::openapi_to_interface_template_data_list(
             &openapi_content,
+            config,
         )?;
 
     let template_data = TemplateData {

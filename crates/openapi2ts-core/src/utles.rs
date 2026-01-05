@@ -4,6 +4,8 @@ use pinyin::ToPinyin;
 use std::collections::HashSet;
 use std::sync::OnceLock;
 
+use crate::StringHook;
+
 /// 判断一个字符是否属于 CJK（中日韩统一表意文字）范围。
 pub fn is_cjk(c: char) -> bool {
     ('\u{4E00}'..='\u{9FFF}').contains(&c)
@@ -359,6 +361,17 @@ pub fn extract_type_name_from_ref(ref_path: &str) -> String {
     final_name.to_pascal_case()
 }
 
+pub fn extract_type_name_from_ref_with_hook(
+    ref_path: &str,
+    custom_type_name: Option<&StringHook>,
+) -> String {
+    if let Some(f) = custom_type_name {
+        f(ref_path)
+    } else {
+        extract_type_name_from_ref(ref_path)
+    }
+}
+
 // ============================================================================
 // 对象类型转换函数
 // ============================================================================
@@ -386,6 +399,7 @@ pub fn extract_type_name_from_ref(ref_path: &str) -> String {
 /// - 无 `additional_properties` → `Record<string, any>`
 pub fn convert_object_type_to_typescript(
     object_type: &openapiv3::ObjectType,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     match &object_type.additional_properties {
         Some(additional_properties) => {
@@ -402,11 +416,12 @@ pub fn convert_object_type_to_typescript(
                     let value_type = match schema_ref.as_ref() {
                         ReferenceOr::Item(schema) => get_typescript_type_string(
                             &ReferenceOr::Item(Box::new(schema.clone())),
+                            custom_type_name,
                         )?,
                         ReferenceOr::Reference { reference } => {
                             get_typescript_type_string(&ReferenceOr::Reference {
                                 reference: reference.clone(),
-                            })?
+                            }, custom_type_name)?
                         }
                     };
                     Ok(format!("Record<string, {}>", value_type))
@@ -441,6 +456,7 @@ pub fn convert_object_type_to_typescript(
 /// - 其他 → "any"
 pub fn get_typescript_type_string(
     schema_ref: &ReferenceOr<Box<Schema>>,
+    custom_type_name: Option<&StringHook>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     match schema_ref {
         ReferenceOr::Item(schema) => {
@@ -454,14 +470,14 @@ pub fn get_typescript_type_string(
                         openapiv3::Type::Array(array_type) => {
                             // 递归处理数组元素类型
                             if let Some(items) = &array_type.items {
-                                let item_type = get_typescript_type_string(items)?;
+                                let item_type = get_typescript_type_string(items, custom_type_name)?;
                                 Ok(format!("{}[]", item_type))
                             } else {
                                 Ok("any[]".to_string())
                             }
                         }
                         openapiv3::Type::Object(object_type) => {
-                            convert_object_type_to_typescript(object_type)
+                            convert_object_type_to_typescript(object_type, custom_type_name)
                         }
                     }
                 }
@@ -471,9 +487,13 @@ pub fn get_typescript_type_string(
                         .map(|item| match item {
                             ReferenceOr::Item(schema_ref) => get_typescript_type_string(
                                 &ReferenceOr::Item(Box::new(schema_ref.clone())),
+                                custom_type_name,
                             ),
                             ReferenceOr::Reference { reference } => {
-                                Ok(extract_type_name_from_ref(reference.as_str()))
+                                Ok(extract_type_name_from_ref_with_hook(
+                                    reference.as_str(),
+                                    custom_type_name,
+                                ))
                             }
                         })
                         .collect::<Result<Vec<String>, _>>()?;
@@ -485,9 +505,13 @@ pub fn get_typescript_type_string(
                         .map(|item| match item.clone() {
                             ReferenceOr::Item(schema_ref) => get_typescript_type_string(
                                 &ReferenceOr::Item(Box::new(schema_ref.clone())),
+                                custom_type_name,
                             ),
                             ReferenceOr::Reference { reference } => {
-                                Ok(extract_type_name_from_ref(reference.as_str()))
+                                Ok(extract_type_name_from_ref_with_hook(
+                                    reference.as_str(),
+                                    custom_type_name,
+                                ))
                             }
                         })
                         .collect::<Result<Vec<String>, _>>()?;
@@ -499,9 +523,13 @@ pub fn get_typescript_type_string(
                         .map(|item| match item.clone() {
                             ReferenceOr::Item(schema_ref) => get_typescript_type_string(
                                 &ReferenceOr::Item(Box::new(schema_ref.clone())),
+                                custom_type_name,
                             ),
                             ReferenceOr::Reference { reference } => {
-                                Ok(extract_type_name_from_ref(reference.as_str()))
+                                Ok(extract_type_name_from_ref_with_hook(
+                                    reference.as_str(),
+                                    custom_type_name,
+                                ))
                             }
                         })
                         .collect::<Result<Vec<String>, _>>()?;
@@ -510,6 +538,9 @@ pub fn get_typescript_type_string(
                 _ => Ok("any".to_string()),
             }
         }
-        ReferenceOr::Reference { reference } => Ok(extract_type_name_from_ref(reference)),
+        ReferenceOr::Reference { reference } => Ok(extract_type_name_from_ref_with_hook(
+            reference,
+            custom_type_name,
+        )),
     }
 }
