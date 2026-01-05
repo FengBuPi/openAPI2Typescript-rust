@@ -230,7 +230,6 @@ pub fn generate_service_index(
 }
 
 #[wasm_bindgen]
-// 暴露给前端的main函数，返回是否成功
 pub async fn openapi2ts(openapi_json: String, js_config: &JsValue) -> Result<bool, JsValue> {
     let wasm_config: WasmConfig = WasmConfig::from_js_object(js_config);
 

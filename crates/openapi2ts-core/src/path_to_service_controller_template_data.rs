@@ -37,8 +37,9 @@ pub fn openapi_to_service_controller_template_data_group_list(
     config: &Config,
 ) -> Result<HashMap<String, ServiceControllerTemplateData>, Box<dyn std::error::Error>> {
     let Config {
-        request_import_statement,
+        api_prefix,
         namespace,
+        request_import_statement,
         request_options_type,
         custom_url_path,
         ..
@@ -68,6 +69,7 @@ pub fn openapi_to_service_controller_template_data_group_list(
             operation,
             namespace,
             custom_url_path,
+            api_prefix,
         ) {
             Ok(api_definition) => api_definition,
             Err(e) => {
@@ -118,7 +120,7 @@ pub fn openapi_to_service_controller_template_data_list(
         .operations()
         .filter_map(|(path, method, operation)| {
             let method = TemplateHttpMethod::from_string(method);
-            convert_operation_to_api_definition(path, &method, operation, namespace, None).ok()
+            convert_operation_to_api_definition(path, &method, operation, namespace, None, "").ok()
         })
         .collect();
 
@@ -147,6 +149,7 @@ fn convert_operation_to_api_definition(
     operation: &Operation,
     namespace: &str,
     custom_url_path: Option<&dyn Fn(&str) -> String>,
+    api_prefix: &str,
 ) -> Result<ApiDefinition, Box<dyn std::error::Error>> {
     // 生成函数名: 方法名+Path路径
     let function_name = generate_function_name(method, path);
@@ -156,22 +159,23 @@ fn convert_operation_to_api_definition(
     let body = convert_request_body(&operation.request_body, namespace)?;
     // 转换响应
     let response = convert_responses(&operation.responses, namespace)?;
-    // 是否包含路径变量：原始 OpenAPI path 中是否含有 `{var}` 形式
-    let has_path_variables = path.contains('{');
     // 是否包含表单数据：请求体类型是否为 multipart/form-data 或 x-www-form-urlencoded
     let has_form_data = body
-        .as_ref()
-        .map(|b| b.body_type.is_form_data())
-        .unwrap_or(false);
+    .as_ref()
+    .map(|b| b.body_type.is_form_data())
+    .unwrap_or(false);
     let origin_path = match custom_url_path {
         Some(f) => f(path),
         None => path.to_string(),
     };
+    // 是否包含路径变量：原始 OpenAPI path 中是否含有 `{var}` 形式
+    let has_path_variables = path.contains('{');
     // 将路径中的 {variable} 转换为 ${variable}，用于 TypeScript 模板字符串
     let converted_path = if has_path_variables {
-        convert_path_to_template_string(&origin_path)
+       let converted_path = convert_path_to_template_string(&origin_path);
+        format!("{}{}", api_prefix, converted_path)
     } else {
-        origin_path.clone()
+        format!("{}{}", api_prefix, origin_path)
     };
     let description = Some(format!("{}{}",operation.summary.clone().unwrap_or_default(),operation.description.clone().unwrap_or_default()));
     Ok(ApiDefinition {
