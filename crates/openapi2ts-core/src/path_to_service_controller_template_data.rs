@@ -37,17 +37,11 @@ pub fn openapi_to_service_controller_template_data_group_list(
     config: &Config,
 ) -> Result<HashMap<String, ServiceControllerTemplateData>, Box<dyn std::error::Error>> {
     let Config {
-        api_prefix,
         namespace,
         request_import_statement,
         request_options_type,
-        custom_url_path,
         ..
     } = config;
-
-    let custom_url_path: Option<&dyn Fn(&str) -> String> = custom_url_path
-        .as_deref()
-        .map(|f| f as &dyn Fn(&str) -> String);
 
     // 使用 HashMap 来按 tag 分组，避免重复创建 ApiGroup
     let mut tag_groups: std::collections::HashMap<String, ServiceControllerTemplateData> =
@@ -60,16 +54,14 @@ pub fn openapi_to_service_controller_template_data_group_list(
         let tag = tag_to_file_name(tag, "moren");
 
         // 尝试转换 HTTP 方法
-        let template_method = TemplateHttpMethod::from_string(method);
+        let method = TemplateHttpMethod::from_string(method);
 
         // 尝试转换操作为 API 定义
         let api_definition = match convert_operation_to_api_definition(
+            config,
             path,
-            &template_method,
+            &method,
             operation,
-            namespace,
-            custom_url_path,
-            api_prefix,
         ) {
             Ok(api_definition) => api_definition,
             Err(e) => {
@@ -112,20 +104,20 @@ pub fn openapi_to_service_controller_template_data_group_list(
 /// # 返回值
 /// * `Ok(Vec<ApiDefinition>)` - API 定义列表
 /// * `Err(Box<dyn std::error::Error>)` - 转换过程中的错误
-pub fn openapi_to_service_controller_template_data_list(
-    openapi: &OpenAPI,
-    namespace: &str,
-) -> Result<Vec<ApiDefinition>, Box<dyn std::error::Error>> {
-    let api_definitions = openapi
-        .operations()
-        .filter_map(|(path, method, operation)| {
-            let method = TemplateHttpMethod::from_string(method);
-            convert_operation_to_api_definition(path, &method, operation, namespace, None, "").ok()
-        })
-        .collect();
+// pub fn openapi_to_service_controller_template_data_list(
+//     openapi: &OpenAPI,
+//     namespace: &str,
+// ) -> Result<Vec<ApiDefinition>, Box<dyn std::error::Error>> {
+//     let api_definitions = openapi
+//         .operations()
+//         .filter_map(|(path, method, operation)| {
+//             let method = TemplateHttpMethod::from_string(method);
+//             convert_operation_to_api_definition(path, &method, operation, namespace, None, "").ok()
+//         })
+//         .collect();
 
-    Ok(api_definitions)
-}
+//     Ok(api_definitions)
+// }
 
 /// 将单个 OpenAPI[path][method] 操作转换为 API 定义
 ///
@@ -144,15 +136,25 @@ pub fn openapi_to_service_controller_template_data_list(
 /// * `Ok(None)` - 操作无效，跳过
 /// * `Err(...)` - 转换失败
 fn convert_operation_to_api_definition(
+    config: &Config,
     path: &str,
     method: &TemplateHttpMethod,
     operation: &Operation,
-    namespace: &str,
-    custom_url_path: Option<&dyn Fn(&str) -> String>,
-    api_prefix: &str,
 ) -> Result<ApiDefinition, Box<dyn std::error::Error>> {
-    // 生成函数名: 方法名+Path路径
-    let function_name = generate_function_name(method, path);
+    let Config {
+        api_prefix,
+        namespace,
+        custom_url_path,
+        custom_function_name,
+        ..
+    } = config;
+    // 生成函数名
+    let function_name =  if let Some(f) = custom_function_name {
+        f(method.to_string().as_str(), path)
+    } else {
+        // 生成函数名: 方法名+Path路径
+        generate_function_name(method, path)
+    };
     // 转换参数
     let params = convert_parameters(&operation.parameters, namespace)?;
     // 转换请求体

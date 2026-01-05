@@ -2,10 +2,17 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 
 #[cfg(target_arch = "wasm32")]
-pub type StringHook = Box<dyn Fn(&str) -> String>;
+pub type StringHook = Box<dyn for<'a> Fn(&'a str) -> String>;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub type StringHook = Box<dyn Fn(&str) -> String + Send + Sync>;
+pub type StringHook = Box<dyn for<'a> Fn(&'a str) -> String + Send + Sync>;
+
+#[cfg(target_arch = "wasm32")]
+pub type FunctionNameHook = Box<dyn for<'a, 'b> Fn(&'a str, &'b str) -> String>;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub type FunctionNameHook = Box<dyn for<'a, 'b> Fn(&'a str, &'b str) -> String + Send + Sync>;
+
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -43,7 +50,7 @@ pub struct Config {
     pub after_open_api_data_inited: Option<StringHook>,
     /// 自定义请求方法函数名称
     #[serde(skip)]
-    pub custom_function_name: Option<StringHook>,
+    pub custom_function_name: Option<FunctionNameHook>,
     /// 自定义类型名称
     #[serde(skip)]
     pub custom_type_name: Option<StringHook>,
