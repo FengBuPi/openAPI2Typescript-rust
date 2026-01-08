@@ -35,7 +35,7 @@ pub struct WasmConfig {
     /// 自定义请求方法函数名称
     pub custom_function_name: Option<Function>,
     /// 自定义类型名称
-    pub custom_type_name: Function,
+    pub custom_type_name: Option<Function>,
     /// 自定义类名
     pub custom_class_name: Function,
     /// 自定义类型
@@ -109,7 +109,7 @@ impl WasmConfig {
         let split_declare = Self::get_bool(js_config, "splitDeclare", false);
         let after_open_api_data_inited = Self::get_function(js_config, "afterOpenApiDataInited");
         let custom_function_name = Self::get_optional_function(js_config, "customFunctionName");
-        let custom_type_name = Self::get_function(js_config, "customTypeName");
+        let custom_type_name = Self::get_optional_function(js_config, "customTypeName");
         let custom_class_name = Self::get_function(js_config, "customClassName");
         let custom_type = Self::get_function(js_config, "customType");
         let custom_file_names = Self::get_function(js_config, "customFileNames");
@@ -160,12 +160,13 @@ impl WasmConfig {
     }
 
     /// 自定义类型名称 (data) => string
-    pub fn call_custom_type_name(&self, data: &JsValue) -> String {
-        self.custom_type_name
-            .call1(&JsValue::NULL, data)
-            .unwrap()
-            .as_string()
-            .unwrap()
+    pub fn call_custom_type_name(&self, data: &JsValue) -> Option<String> {
+        self.custom_type_name.as_ref().map(|f| {
+            f.call1(&JsValue::NULL, data)
+                .unwrap()
+                .as_string()
+                .unwrap()
+        })
     }
 
     /// 自定义类名 (tagName) => string

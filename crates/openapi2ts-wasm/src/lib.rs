@@ -56,15 +56,17 @@ pub fn wasm_config_to_core_config(wasm_config: &WasmConfig) -> openapi2ts_core::
     let custom_function_name: Option<openapi2ts_core::FunctionNameHook> = None;
 
     #[cfg(target_arch = "wasm32")]
-    let custom_type_name = {
-        let f = wasm_config.custom_type_name.clone();
-        Some(Box::new(move |data: &str| {
-            f.call1(&JsValue::NULL, &JsValue::from_str(data))
-                .unwrap()
-                .as_string()
-                .unwrap_or_else(|| data.to_string())
-        }) as openapi2ts_core::StringHook)
-    };
+    let custom_type_name = wasm_config
+        .custom_type_name
+        .clone()
+        .map(|f| {
+            Box::new(move |data: &str| {
+                f.call1(&JsValue::NULL, &JsValue::from_str(data))
+                    .unwrap()
+                    .as_string()
+                    .unwrap_or_else(|| data.to_string())
+            }) as openapi2ts_core::StringHook
+        });
 
     #[cfg(not(target_arch = "wasm32"))]
     let custom_type_name: Option<openapi2ts_core::StringHook> = None;
