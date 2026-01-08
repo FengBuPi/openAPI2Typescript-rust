@@ -33,7 +33,7 @@ pub struct WasmConfig {
     /// OpenAPI 数据初始化后的钩子
     pub after_open_api_data_inited: Function,
     /// 自定义请求方法函数名称
-    pub custom_function_name: Function,
+    pub custom_function_name: Option<Function>,
     /// 自定义类型名称
     pub custom_type_name: Function,
     /// 自定义类名
@@ -82,6 +82,14 @@ impl WasmConfig {
             .unwrap_or_else(|_| Function::new_no_args(""))
     }
 
+    fn get_optional_function(js_config: &JsValue, key: &str) -> Option<Function> {
+        let v = Self::get_js_value(js_config, key);
+        if v.is_undefined() || v.is_null() {
+            return None;
+        }
+        v.dyn_into::<Function>().ok()
+    }
+
     /// 从 JsObject config 对象转换为 WasmConfig
     pub fn from_js_object(js_config: &JsValue) -> WasmConfig {
         let api_prefix = Self::get_string(js_config, "apiPrefix", "");
@@ -100,7 +108,7 @@ impl WasmConfig {
             Self::get_string(js_config, "requestOptionsType", "RequestOptions");
         let split_declare = Self::get_bool(js_config, "splitDeclare", false);
         let after_open_api_data_inited = Self::get_function(js_config, "afterOpenApiDataInited");
-        let custom_function_name = Self::get_function(js_config, "customFunctionName");
+        let custom_function_name = Self::get_optional_function(js_config, "customFunctionName");
         let custom_type_name = Self::get_function(js_config, "customTypeName");
         let custom_class_name = Self::get_function(js_config, "customClassName");
         let custom_type = Self::get_function(js_config, "customType");
@@ -142,12 +150,13 @@ impl WasmConfig {
     }
 
     /// 自定义请求方法函数名称 (data) => string
-    pub fn call_custom_function_name(&self, data: &JsValue) -> String {
-        self.custom_function_name
-            .call1(&JsValue::NULL, data)
-            .unwrap()
-            .as_string()
-            .unwrap()
+    pub fn call_custom_function_name(&self, data: &JsValue) -> Option<String> {
+        self.custom_function_name.as_ref().map(|f| {
+            f.call1(&JsValue::NULL, data)
+                .unwrap()
+                .as_string()
+                .unwrap()
+        })
     }
 
     /// 自定义类型名称 (data) => string

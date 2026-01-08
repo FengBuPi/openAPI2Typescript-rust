@@ -28,7 +28,7 @@ pub fn wasm_config_to_core_config(wasm_config: &WasmConfig) -> openapi2ts_core::
             f.call1(&JsValue::NULL, &JsValue::from_str(data))
                 .unwrap()
                 .as_string()
-                .unwrap()
+                .unwrap_or_else(|| data.to_string())
         }) as openapi2ts_core::StringHook)
     };
 
@@ -36,19 +36,21 @@ pub fn wasm_config_to_core_config(wasm_config: &WasmConfig) -> openapi2ts_core::
     let after_open_api_data_inited: Option<openapi2ts_core::StringHook> = None;
 
     #[cfg(target_arch = "wasm32")]
-    let custom_function_name = {
-        let f = wasm_config.custom_function_name.clone();
-        Some(Box::new(move |method: &str, path: &str| {
-            f.call2(
-                &JsValue::NULL,
-                &JsValue::from_str(method),
-                &JsValue::from_str(path),
-            )
+    let custom_function_name = wasm_config
+        .custom_function_name
+        .clone()
+        .map(|f| {
+            Box::new(move |method: &str, path: &str| {
+                f.call2(
+                    &JsValue::NULL,
+                    &JsValue::from_str(method),
+                    &JsValue::from_str(path),
+                )
                 .unwrap()
                 .as_string()
-                .unwrap()
-        }) as openapi2ts_core::FunctionNameHook)
-    };
+                .unwrap_or_else(|| format!("{}{}", method, path))
+            }) as openapi2ts_core::FunctionNameHook
+        });
 
     #[cfg(not(target_arch = "wasm32"))]
     let custom_function_name: Option<openapi2ts_core::FunctionNameHook> = None;
@@ -74,7 +76,7 @@ pub fn wasm_config_to_core_config(wasm_config: &WasmConfig) -> openapi2ts_core::
             f.call1(&JsValue::NULL, &JsValue::from_str(data))
                 .unwrap()
                 .as_string()
-                .unwrap()
+                .unwrap_or_else(|| data.to_string())
         }) as openapi2ts_core::StringHook)
     };
 
@@ -88,7 +90,7 @@ pub fn wasm_config_to_core_config(wasm_config: &WasmConfig) -> openapi2ts_core::
             f.call1(&JsValue::NULL, &JsValue::from_str(data))
                 .unwrap()
                 .as_string()
-                .unwrap()
+                .unwrap_or_else(|| data.to_string())
         }) as openapi2ts_core::StringHook)
     };
 
@@ -102,7 +104,7 @@ pub fn wasm_config_to_core_config(wasm_config: &WasmConfig) -> openapi2ts_core::
             f.call1(&JsValue::NULL, &JsValue::from_str(data))
                 .unwrap()
                 .as_string()
-                .unwrap()
+                .unwrap_or_else(|| data.to_string())
         }) as openapi2ts_core::StringHook)
     };
 
@@ -116,7 +118,7 @@ pub fn wasm_config_to_core_config(wasm_config: &WasmConfig) -> openapi2ts_core::
             f.call1(&JsValue::NULL, &JsValue::from_str(api_path))
                 .unwrap()
                 .as_string()
-                .unwrap()
+                .unwrap_or_else(|| api_path.to_string())
         }) as openapi2ts_core::StringHook)
     };
 
@@ -130,7 +132,7 @@ pub fn wasm_config_to_core_config(wasm_config: &WasmConfig) -> openapi2ts_core::
             f.call1(&JsValue::NULL, &JsValue::from_str(data))
                 .unwrap()
                 .as_string()
-                .unwrap()
+                .unwrap_or_else(|| "true".to_string())
         }) as openapi2ts_core::StringHook)
     };
 
