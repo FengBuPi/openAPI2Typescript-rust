@@ -1,6 +1,6 @@
 {
 	"name": "openapi2ts-wasm",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "openapi typescript",
 	"keywords": [
 		"openapi",
@@ -17,7 +17,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "tsc -p tsconfig.json && wasm-pack build --target nodejs --out-dir npm/pkg --release",
-		"postbuild": "node -e \"const fs=require('fs'); const ps=['dist/index.js','dist/cli.js']; for (const p of ps) { if(!fs.existsSync(p)) continue; let s=fs.readFileSync(p,'utf8'); s=s.replaceAll('./pkg/', '../pkg/'); if(!s.startsWith('#!/usr/bin/env node')) s='#!/usr/bin/env node\\n'+s; fs.writeFileSync(p,s); }\"",
+		"postbuild": "node -e \"const fs=require('fs'); const ps=['dist/index.js','dist/cli.js']; for (const p of ps) { if(!fs.existsSync(p)) continue; let s=fs.readFileSync(p,'utf8'); s=s.replaceAll('./pkg/', '../pkg/'); if(!s.startsWith('#!/usr/bin/env node')) s='#!/usr/bin/env node\\n'+s; fs.writeFileSync(p,s); } const gi='pkg/.gitignore'; if(fs.existsSync(gi)) fs.unlinkSync(gi);\"",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
 		"prepack": "pnpm run build"
 	},
