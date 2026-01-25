@@ -2,7 +2,6 @@
 /* eslint-disable */
 // 该文件请使用 npx openapi2ts-wasm 运行生成
 // generateTime: {{ time }}
-
 {% for api in list -%}
 export * from '{{ api.fileName }}'
 {% endfor -%}
