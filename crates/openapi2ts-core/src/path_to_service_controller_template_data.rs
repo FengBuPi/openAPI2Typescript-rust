@@ -210,9 +210,24 @@ fn convert_operation_to_api_definition(
 /// 5. 组合：方法名（小写）+ 资源名（首字母大写）
 ///
 /// # 示例
-/// - `POST /api/users` -> `postApiUsers`
-/// - `GET /user/{id}/profile` -> `getUserProfile`
-/// - `DELETE /api/create-order` -> `deleteApiCreateOrder`
+/// ```
+/// use crate::TemplateHttpMethod;
+/// 
+/// // 正常带冒号参数的路径
+/// let path1 = "/admin/v1/admin/openapi/app/:id/delete";
+/// let name1 = generate_function_name(&TemplateHttpMethod::Post, path1);
+/// assert_eq!(name1, "postAdminV1AdminOpenapiAppIdDelete");
+/// 
+/// // 格式错误的路径（残留左大括号）
+/// let path2 = "/admin/v1/admin/public-tag-group/{id}/tag/{tag_id/deprecated";
+/// let name2 = generate_function_name(&TemplateHttpMethod::Post, path2);
+/// assert_eq!(name2, "postAdminV1AdminPublicTagGroupIdTagTagIdDeprecated");
+/// 
+/// // 混合特殊字符的路径
+/// let path3 = "/user/{userId/:type}/info-{detail}/test";
+/// let name3 = generate_function_name(&TemplateHttpMethod::Put, path3);
+/// assert_eq!(name3, "putUserUserIdTypeInfoDetailTest");
+/// ```
 ///
 /// # 参数
 /// * `method` - HTTP 方法
@@ -222,15 +237,45 @@ fn convert_operation_to_api_definition(
 /// 生成的函数名（camelCase 格式）
 fn generate_function_name(method: &TemplateHttpMethod, path: &str) -> String {
     // 从路径中提取资源名，消除 '/', '-','{}'
-    let resource = path
-        .split('/')
-        .filter(|s| !s.is_empty() && !s.starts_with('{')) // 过滤空字符串和路径参数
-        .flat_map(|segment| segment.split('-')) // 按短横线分割
-        .filter(|s| !s.is_empty()) // 过滤空字符串
-        .collect::<Vec<_>>()
-        .join(""); // 拼接所有单词
+    // let resource = path
+    //     .split('/')
+    //     .filter(|s| !s.is_empty() && !s.starts_with('{')) // 过滤空字符串和路径参数
+    //     .flat_map(|segment| segment.split('-')) // 按短横线分割
+    //     .filter(|s| !s.is_empty()) // 过滤空字符串
+    //     .collect::<Vec<_>>()
+    //     .join(""); // 拼接所有单词
 
-    format!("{}{}", method.to_string(), resource.to_pascal_case())
+    // format!("{}{}", method.to_string(), resource.to_pascal_case())
+     // 1. 预处理：全局移除 {、}、: 特殊字符
+    let cleaned_path = path
+        .replace('{', "")
+        .replace('}', "")
+        .replace(':', "");
+
+    // 2. 处理路径片段：分割→过滤空值→分割短横线→过滤空值→首字母大写
+    let processed_segments: Vec<String> = cleaned_path
+        // 按 / 分割路径片段
+        .split('/')
+        // 过滤空字符串（开头/结尾/异常分割产生的空值）
+        .filter(|s| !s.is_empty() && !s.trim().is_empty())
+        // 按 - 分割每个片段（flat_map 展平嵌套迭代器）
+        .flat_map(|segment| segment.split('-'))
+        // 再次过滤空字符串
+        .filter(|s| !s.is_empty() && !s.trim().is_empty())
+        // 每个片段首字母大写，其余字符保持原样
+        .map(|segment| {
+            let mut chars = segment.chars();
+            match chars.next() {
+                // 首字母大写，剩余字符拼接
+                Some(first) => first.to_uppercase().to_string() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect();
+    // 3. 拼接路径片段（所有片段首字母大写的连续字符串）
+    let capitalized_resource: String = processed_segments.concat();
+    // 4. 拼接方法名（小写）+ 路径片段 = 小驼峰命名
+    format!("{}{}", method, capitalized_resource)
 }
 
 /// 转换 OpenAPI 参数列表为模板参数结构
