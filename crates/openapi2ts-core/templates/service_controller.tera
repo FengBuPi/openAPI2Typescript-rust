@@ -1,7 +1,6 @@
 // @ts-nocheck
 /* eslint-disable */
 // 该文件请使用 npx openapi2ts-wasm 运行生成
-// generateTime: {{ time }}
 {{ requestImportStatement }}
 
 {% for api in list -%}

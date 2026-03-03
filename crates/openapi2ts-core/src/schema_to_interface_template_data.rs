@@ -2,10 +2,8 @@ use crate::{
     generator_template::interface_template_generator::{
         BasicType, EnumTypeTemplate, EnumValue, ObjectTypeTemplate, Property, TypeDefinition,
     },
-    utles::{
-        extract_type_name_from_ref_with_hook, get_typescript_type_string, is_valid_typescript_identifier,
-    },
-    Config, StringHook,
+    utles::{get_typescript_type_string, is_valid_typescript_identifier},
+    Config,
 };
 use indexmap::IndexMap;
 use openapiv3::{OpenAPI, ReferenceOr, Schema};
@@ -37,14 +35,18 @@ pub fn openapi_to_interface_template_data_list(
     config: &Config,
 ) -> Result<Vec<TypeDefinition>, Box<dyn std::error::Error>> {
     let mut type_definitions = Vec::new();
-    let custom_type_name = config.custom_type_name.as_ref();
 
     // 从 OpenAPI.components.schemas 中提取所有模式定义
     if let Some(components) = &openapi.components {
         for (schema_name, schema_ref) in &components.schemas {
             // 将每个 schema 转换为 TypeDefinition
             let type_definition =
-                convert_schema_to_type_definition(schema_name, schema_ref, custom_type_name)?;
+                convert_schema_to_type_definition(
+                    schema_name,
+                    schema_ref,
+                    config,
+                    &config.namespace,
+                )?;
             type_definitions.push(type_definition);
         }
     }
@@ -77,10 +79,11 @@ pub fn openapi_to_interface_template_data_list(
 fn convert_schema_to_type_definition(
     schema_key: &str,
     schema_value: &ReferenceOr<Schema>,
-    custom_type_name: Option<&StringHook>,
+    config: &Config,
+    namespace: &str,
 ) -> Result<TypeDefinition, Box<dyn std::error::Error>> {
     // 生成类型名称（PascalCase 格式）
-    let type_name = extract_type_name_from_ref_with_hook(schema_key, custom_type_name);
+    let type_name = config.resolve_type_name(schema_key);
 
     match schema_value {
         // 处理内联定义的 Schema
@@ -94,7 +97,8 @@ fn convert_schema_to_type_definition(
                         &type_name,
                         type_kind,
                         &schema.schema_data.description,
-                        custom_type_name,
+                        config,
+                        namespace,
                     )
                 }
                 // 转换成ts联合类型
@@ -167,7 +171,8 @@ fn convert_schema_to_type_definition(
                         &any_schema.properties,
                         &any_schema.required,
                         &description,
-                        custom_type_name,
+                        config,
+                        namespace,
                     )
                 }
             }
@@ -198,7 +203,8 @@ fn convert_typed_schema(
     type_name: &str,
     type_kind: &openapiv3::Type,
     description: &Option<String>,
-    custom_type_name: Option<&StringHook>,
+    config: &Config,
+    namespace: &str,
 ) -> Result<TypeDefinition, Box<dyn std::error::Error>> {
     match type_kind {
         // 对象类型转换
@@ -208,7 +214,8 @@ fn convert_typed_schema(
                 &object_type.properties,
                 &object_type.required,
                 description,
-                custom_type_name,
+                config,
+                namespace,
             )
         }
         // 字符串类型转换
@@ -231,7 +238,13 @@ fn convert_typed_schema(
         }),
         // 数组类型转换
         openapiv3::Type::Array(array_type) => {
-            convert_array_type(type_name, array_type, description, custom_type_name)
+            convert_array_type(
+                type_name,
+                array_type,
+                description,
+                config,
+                namespace,
+            )
         }
     }
 }
@@ -242,7 +255,8 @@ fn convert_object_type(
     properties: &IndexMap<String, ReferenceOr<Box<Schema>>>,
     required: &[String],
     description: &Option<String>,
-    custom_type_name: Option<&StringHook>,
+    config: &Config,
+    namespace: &str,
 ) -> Result<TypeDefinition, Box<dyn std::error::Error>> {
     let mut props = Vec::new();
 
@@ -259,7 +273,8 @@ fn convert_object_type(
             prop_name.as_str(),
             prop_schema_ref,
             is_required,
-            custom_type_name,
+            config,
+            namespace,
         )?;
         props.push(property);
     }
@@ -352,7 +367,8 @@ fn convert_array_type(
     type_name: &str,
     array_type: &openapiv3::ArrayType,
     description: &Option<String>,
-    custom_type_name: Option<&StringHook>,
+    config: &Config,
+    namespace: &str,
 ) -> Result<TypeDefinition, Box<dyn std::error::Error>> {
     let mut props = Vec::new();
 
@@ -363,7 +379,8 @@ fn convert_array_type(
                     type_name,
                     &ReferenceOr::Item(schema.clone()),
                     false,
-                    custom_type_name,
+                    config,
+                    namespace,
                 )?;
                 props.push(property);
             }
@@ -371,10 +388,7 @@ fn convert_array_type(
                 // 引用类型
                 let property = Property {
                     key: "items".to_string(),
-                    value: format!(
-                        "{}[]",
-                        extract_type_name_from_ref_with_hook(reference.as_str(), custom_type_name)
-                    ),
+                    value: format!("{}[]", config.resolve_type_name(reference.as_str())),
                     is_required: true,
                     description: None,
                     needs_quotes: false,
@@ -491,12 +505,17 @@ fn convert_property(
     prop_name: &str,
     prop_schema_ref: &ReferenceOr<Box<Schema>>,
     is_required: bool,
-    custom_type_name: Option<&StringHook>,
+    config: &Config,
+    namespace: &str,
 ) -> Result<Property, Box<dyn std::error::Error>> {
     let key = prop_name.to_string();
     let needs_quotes = !is_valid_typescript_identifier(prop_name);
     // 使用递归函数获取最终的 TypeScript 非对象类型
-    let value = get_typescript_type_string(prop_schema_ref, custom_type_name)?;
+    let value = get_typescript_type_string(
+        prop_schema_ref,
+        config,
+        Some(namespace),
+    )?;
 
     // 提取 description
     let desc = match prop_schema_ref {

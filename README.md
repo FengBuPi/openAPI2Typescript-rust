@@ -158,11 +158,11 @@ cargo test
 
 | 属性 | 类型 | 说明 | 当前支持情况 |
 |------|------|------|------|
-| afterOpenApiDataInited | (openAPIData: OpenAPIObject) => OpenAPIObject | OpenAPI 数据初始化后的钩子 | 1.0 |
+| afterOpenApiDataInited | (openAPIJson: string) => string | OpenAPI 数据初始化后的钩子 | 1.0 |
 | customFunctionName | (method: string, path: string) => string | 自定义请求方法函数名称 | 1.0  |
-| customTypeName | (data: APIDataType) => string | 自定义类型名称 | 即将支持 |
+| customTypeName | (refPath: string) => string | 自定义类型名称 | 1.0 |
 | customClassName | (tagName: string) => string | 自定义类名 | 即将支持 |
-| customType | (schemaObject, namespace, originGetType) => string | 自定义获取类型 | 即将支持 |
-| customFileNames | (operationObject, apiPath, _apiMethod) => string[] | 自定义生成文件名 | 即将支持 |
+| customType | (schemaObjectJson: string, namespace: string, originGetType: string) => string | 自定义获取类型 | 1.0 |
+| customFileNames | (operationObjectJson: string, apiPath: string, apiMethod: string) => string[] | 自定义生成文件名 | 1.0 |
 | customUrlPath | (apiPath: string) => string | 自定义 URL 路径 | 1.0 |
-| fileterGenAPIFn | (apiPath: string, apiMethod: string) => boolean | 过滤生成的 API 接口函数 | 即将支持 |
+| fileterGenAPIFn | (apiPath: string, apiMethod: string) => boolean | 过滤生成的 API 接口函数 | 1.0 |
