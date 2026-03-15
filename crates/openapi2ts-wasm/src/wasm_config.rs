@@ -137,9 +137,9 @@ impl WasmConfig {
     pub fn call_custom_function_name(&self, data: &JsValue) -> Option<String> {
         self.custom_function_name.as_ref().map(|f| {
             f.call1(&JsValue::NULL, data)
-                .unwrap()
-                .as_string()
-                .unwrap()
+                .ok()
+                .and_then(|v| v.as_string())
+                .unwrap_or_else(|| data.as_string().unwrap_or_default())
         })
     }
 
@@ -147,9 +147,9 @@ impl WasmConfig {
     pub fn call_custom_type_name(&self, data: &JsValue) -> Option<String> {
         self.custom_type_name.as_ref().map(|f| {
             f.call1(&JsValue::NULL, data)
-                .unwrap()
-                .as_string()
-                .unwrap()
+                .ok()
+                .and_then(|v| v.as_string())
+                .unwrap_or_else(|| data.as_string().unwrap_or_default())
         })
     }
 
