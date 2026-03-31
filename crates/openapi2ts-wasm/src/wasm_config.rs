@@ -45,7 +45,7 @@ pub struct WasmConfig {
     /// 自定义 URL 路径
     pub custom_url_path: Option<Function>,
     /// 过滤生成的 API 接口函数
-    pub fileter_gen_api_fn: Option<Function>,
+    pub filter_gen_api_fn: Option<Function>,
 }
 
 impl WasmConfig {
@@ -95,7 +95,7 @@ impl WasmConfig {
         let custom_type = Self::get_optional_function(js_config, "customType");
         let custom_file_names = Self::get_optional_function(js_config, "customFileNames");
         let custom_url_path = Self::get_optional_function(js_config, "customUrlPath");
-        let fileter_gen_api_fn = Self::get_optional_function(js_config, "fileterGenAPIFn");
+        let filter_gen_api_fn = Self::get_optional_function(js_config, "filterGenApiFn");
 
         WasmConfig {
             api_prefix,
@@ -119,7 +119,7 @@ impl WasmConfig {
             custom_type,
             custom_file_names,
             custom_url_path,
-            fileter_gen_api_fn,
+            filter_gen_api_fn,
         }
     }
 
@@ -218,8 +218,8 @@ impl WasmConfig {
     }
 
     /// 筛选是否生成接口函数 (apiPath, apiMethod) => boolean
-    pub fn call_fileter_gen_api_fn(&self, api_path: &str, api_method: Option<&str>) -> Option<bool> {
-        self.fileter_gen_api_fn.as_ref().map(|f| {
+    pub fn call_filter_gen_api_fn(&self, api_path: &str, api_method: Option<&str>) -> Option<bool> {
+        self.filter_gen_api_fn.as_ref().map(|f| {
             let v = f
                 .call2(
                     &JsValue::NULL,

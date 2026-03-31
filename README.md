@@ -165,4 +165,4 @@ cargo test
 | customType | (schemaObjectJson: string, namespace: string, originGetType: string) => string | 自定义获取类型 | 1.0 |
 | customFileNames | (operationObjectJson: string, apiPath: string, apiMethod: string) => string[] | 自定义生成文件名 | 1.0 |
 | customUrlPath | (apiPath: string) => string | 自定义 URL 路径 | 1.0 |
-| fileterGenAPIFn | (apiPath: string, apiMethod: string) => boolean | 过滤生成的 API 接口函数 | 1.0 |
+| filterGenApiFn | (apiPath: string, apiMethod: string) => boolean | 过滤生成的 API 接口函数 | 1.0 |

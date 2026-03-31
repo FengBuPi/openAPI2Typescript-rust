@@ -34,5 +34,5 @@ export type Config = {
   /** 接口url地址钩子 (apiPath) => string */
   customUrlPath?: (apiPath: string) => string;
   /** 筛选是否生成接口函数 (apiPath, apiMethod) => boolean */
-  fileterGenAPIFn?: (apiPath: string, apiMethod?: string) => boolean;
+  filterGenApiFn?: (apiPath: string, apiMethod?: string) => boolean;
 };
