@@ -54,13 +54,18 @@ async function getUserConfig(): Promise<[filePath, Config]> {
     return [configFilePath, config];
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
-    console.error('读取 openapi2ts.config 配置失败:', err.message);
-    if (err.stack) console.error(err.stack);
-    process.exit(1);
+    throw new Error(`读取 openapi2ts.config 配置失败: ${err.message}`);
   }
 }
 
 (async () => {
-  const [configPath, config] = await getUserConfig();
-  await openapi2ts(configPath, config);
+  try {
+    const [configPath, config] = await getUserConfig();
+    await openapi2ts(configPath, config);
+  } catch (e) {
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.error(err.message);
+    if (err.stack) console.error(err.stack);
+    process.exitCode = 1;
+  }
 })();

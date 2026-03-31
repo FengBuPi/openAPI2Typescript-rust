@@ -37,8 +37,8 @@ async function loadOpenApiJson(configPath: filePath, schemaPath: string): Promis
     // 本地文件加载
     return readFileSync(path.resolve(path.dirname(configPath), schemaPath), 'utf8');
   } catch (error) {
-    console.error('加载 openapi 文件失败:', error);
-    process.exit(1);
+    const err = error instanceof Error ? error : new Error(String(error));
+    throw new Error(`加载 openapi 文件失败: ${err.message}`);
   }
 }
 
@@ -50,8 +50,8 @@ async function swaggerToOpenapi(openapiJson: OpenAPIV2.Document) {
     console.log('swagger 转换为 openapi 成功:');
     return JSON.stringify(openapi)
   } catch (error) {
-    console.error('swagger 转换为 openapi 失败:', error);
-    process.exit(1);
+    const err = error instanceof Error ? error : new Error(String(error));
+    throw new Error(`swagger 转换为 openapi 失败: ${err.message}`);
   }
 }
 
@@ -85,10 +85,11 @@ async function openapi2ts(configPath: filePath, config: Config) {
     if (generatedCode) {
       console.log('转换成功');
     } else {
-      console.error('转换失败');
+      throw new Error('转换失败');
     }
   } catch (error) {
-    console.error('操作失败:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    throw new Error(`操作失败: ${err.message}`);
   }
 }
 
