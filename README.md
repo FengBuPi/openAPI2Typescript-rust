@@ -72,12 +72,26 @@ pnpm install
 在 `test/` 目录创建：
 
 - `openapi.json`：你的 OpenAPI v3 JSON（或 swagger v2 JSON）
-- `openapi2ts.config.js`：配置文件（可从 `openapi2ts.config.js.example` 拷贝修改）
+- `openapi2ts.config.js` 或 `openapi2ts.config.ts`：配置文件（可从 `openapi2ts.config.js.example` 拷贝修改）
 
 示例（从模板拷贝）：
 
 ```bash
 cp ./openapi2ts.config.js.example ./openapi2ts.config.js
+```
+
+如果你更习惯使用 TypeScript 编写配置，也可以使用 `openapi2ts.config.ts`，例如：
+
+```ts
+// openapi2ts.config.ts
+export default {
+  namespace: 'API',
+  schemaPath: './doc.json',
+  declareType: 'interface',
+  serversPath: './servers',
+  requestLibPath: \"import axios from 'axios';\",
+  isSwagger: true,
+};
 ```
 
 ### 4) 运行 wasm 转换

@@ -4,7 +4,6 @@ service_controller.ts
 service_index.ts
 servers/
 openapi.json
-openapi2ts.config.js
-openapi2ts.config.json5
+openapi2ts.config.*
 node_modules/
 crates/openapi2ts-wasm/pkg/

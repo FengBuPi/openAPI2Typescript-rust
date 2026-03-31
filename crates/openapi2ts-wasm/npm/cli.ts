@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import path from 'path';
-import { cosmiconfig } from 'cosmiconfig';
+import { cosmiconfig, defaultLoaders } from 'cosmiconfig';
 import type { CosmiconfigResult } from 'cosmiconfig';
 import { openapi2ts } from './index.js';
 import type { Config } from './openapi2ts-wasm.js';
@@ -14,6 +14,7 @@ async function getUserConfig(): Promise<[filePath, Config]> {
   try {
     const explorer = cosmiconfig('openapi2ts', {
       searchPlaces: [
+        'openapi2ts.config.ts',
         'openapi2ts.config.mjs',
         'openapi2ts.config.cjs',
         'openapi2ts.config.js',
@@ -30,6 +31,16 @@ async function getUserConfig(): Promise<[filePath, Config]> {
         '.cjs': (filepath) => {
           const mod = require(filepath);
           return mod?.default ?? mod;
+        },
+        '.ts': async (filepath, content) => {
+          // 复用 cosmiconfig 内置的 TypeScript loader 做编译，再兼容 default / module.exports 两种导出
+          const loaded = await defaultLoaders['.ts'](filepath, content);
+          // loaded 可能是 ESM default，也可能是 CommonJS 导出
+          // 这里再做一层 default 合并，统一成配置对象
+          if (loaded && typeof loaded === 'object' && 'default' in (loaded as any)) {
+            return (loaded as any).default ?? loaded;
+          }
+          return loaded;
         },
       },
     });
