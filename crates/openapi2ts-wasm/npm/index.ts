@@ -1,5 +1,4 @@
-import { readFileSync, mkdirSync } from 'fs';
-import { writeFileSync as fsWriteFileSync } from 'fs';
+import { readFileSync, mkdirSync, writeFileSync as fsWriteFileSync, rmSync } from 'fs';
 import path, { dirname } from 'path';
 import https from 'https';
 import swagger2openapi from 'swagger2openapi';
@@ -45,7 +44,9 @@ async function loadOpenApiJson(configPath: filePath, schemaPath: string): Promis
 
 async function swaggerToOpenapi(openapiJson: OpenAPIV2.Document) {
   try {
-    let { openapi } = await swagger2openapi.convert(openapiJson, {});
+    let { openapi } = await swagger2openapi.convert(openapiJson, {
+      patch: true
+    });
     console.log('swagger 转换为 openapi 成功:');
     return JSON.stringify(openapi)
   } catch (error) {
@@ -69,8 +70,14 @@ async function openapi2ts(configPath: filePath, config: Config) {
     openapiJson = await swaggerToOpenapi(JSON.parse(openapiJson));
   }
   // 调用OpenAPI数据初始化后的钩子
-  if (config.afterOpenApiDataInited) {  
+  if (config.afterOpenApiDataInited) {
     openapiJson = JSON.stringify(config.afterOpenApiDataInited(JSON.parse(openapiJson)));
+  }
+  // 生成前先删除旧文件，避免出现残留内容/权限相关的奇怪问题
+  try {
+    rmSync(config.serversPath, { recursive: true, force: true });
+  } catch (e) {
+    console.warn(`删除旧文件失败，仍将继续覆盖写入: ${config.serversPath}`, e);
   }
   try {
     console.log('开始转换OpenAPI到TypeScript...');
